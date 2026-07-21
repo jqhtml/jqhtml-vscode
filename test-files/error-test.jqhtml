@@ -1,0 +1,18 @@
+<Define:TestComponent>
+  <!-- This should be fine -->
+  <div>
+    <%= this.args.label %>
+  </div>
+  
+  <!-- These should show errors -->
+  <div>
+    <%= this.args.label <bar> %>
+  </div>
+  
+  <% if (true <baz>): %>
+    <p>This has an error in the condition</p>
+  <% endif; %>
+  
+  <!-- This is valid - HTML tags outside of JS blocks -->
+  <bar>This is actually valid JQHTML</bar>
+</Define:TestComponent>

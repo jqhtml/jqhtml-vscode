@@ -1,0 +1,52 @@
+<%-- JQHTML VS Code Extension Demo --%>
+
+<Define:TodoApp>
+  <div class="todo-app" $id="app">
+    <h1><%= this.data.title %></h1>
+    
+    <%-- Add new todo form --%>
+    <form @submit="addTodo">
+      <input 
+        :value="this.data.newTodo"
+        :placeholder="'Enter a new task'"
+        @input="updateNewTodo"
+        $id="todoInput"
+      />
+      <button :disabled="!this.data.newTodo">Add</button>
+    </form>
+    
+    <%-- Todo list with both syntax styles --%>
+    <% if (this.data.todos.length > 0): %>
+      <ul class="todo-list">
+        <% for (const todo of this.data.todos) { %>
+          <TodoItem :todo="todo" @complete="completeTodo" @delete="deleteTodo">
+            <#actions>
+              <button @click="editTodo">Edit</button>
+            </#actions>
+          </TodoItem>
+        <% } %>
+      </ul>
+    <% else: %>
+      <p class="empty">No todos yet!</p>
+    <% endif; %>
+    
+    <%-- Stats section --%>
+    <div class="stats">
+      <span>Total: <%= this.data.todos.length %></span>
+      <span>Completed: <%= this.data.todos.filter(t => t.done).length %></span>
+    </div>
+  </div>
+</Define:TodoApp>
+
+<Define:TodoItem>
+  <li class="todo-item" :class="{ done: this.args.todo.done }">
+    <input 
+      type="checkbox" 
+      :checked="this.args.todo.done"
+      @change="toggleComplete"
+    />
+    <span><%= this.args.todo.text %></span>
+    <slot name="actions" />
+    <button @click="handleDelete">×</button>
+  </li>
+</Define:TodoItem>

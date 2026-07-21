@@ -1,0 +1,19 @@
+<Define:StringTest>
+  <% 
+    // These should NOT be flagged as errors
+    var validString1 = "<div>Hello</div>";
+    var validString2 = '<span>World</span>';
+    var validString3 = `<p>Template literal</p>`;
+    var validRegex = /<[^>]+>/g;
+    
+    // This SHOULD be flagged as an error
+    var invalid = someVar <div> anotherVar;
+  %>
+  
+  <%= "This is a valid string: <b>bold</b>" %>
+  <%= 'Another valid string: <i>italic</i>' %>
+  <%= `Template: <em>emphasis</em>` %>
+  
+  <!-- This should be an error -->
+  <%= someExpression <tag> %>
+</Define:StringTest>

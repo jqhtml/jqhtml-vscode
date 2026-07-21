@@ -1,0 +1,163 @@
+<%-- 
+  JQHTML Syntax Test File
+  Tests all syntax highlighting features
+--%>
+
+<!-- HTML comments also work -->
+
+<Define:ComplexComponent>
+  <div class="complex-component" $id="main">
+    <%-- Component with all features --%>
+    
+    <!-- Basic expressions -->
+    <h1><%= this.data.title %></h1>
+    <p class="<%= this.data.className %>">Description: <%= this.data.description || 'No description' %></p>
+    
+    <!-- Special attributes -->
+    <div $id="container" $theme="dark" $visible="true">
+      Special attributes with $ prefix
+    </div>
+    
+    <!-- Data binding -->
+    <input :value="this.data.username" :disabled="this.data.isLocked" />
+    <MyInput :placeholder="'Enter name'" :maxlength="50" />
+    
+    <!-- Event handlers -->
+    <button @click="handleClick" @mouseover="onHover" @keydown="onKey">
+      Click Me
+    </button>
+    
+    <!-- Control flow - Colon style -->
+    <% if (this.data.showDetails): %>
+      <div class="details">
+        <% if (this.data.isAdmin): %>
+          <span class="admin">Admin User</span>
+        <% else: %>
+          <span class="user">Regular User</span>
+        <% endif; %>
+      </div>
+    <% endif; %>
+    
+    <!-- Control flow - Brace style -->
+    <% if (this.data.items && this.data.items.length > 0) { %>
+      <ul class="items">
+        <% for (const item of this.data.items) { %>
+          <li>
+            <span><%= item.name %></span>
+            <% if (item.count > 0) { %>
+              <span class="count">(<%= item.count %>)</span>
+            <% } %>
+          </li>
+        <% } %>
+      </ul>
+    <% } else { %>
+      <p>No items available</p>
+    <% } %>
+    
+    <!-- Mixed styles (both work) -->
+    <% for (const user of this.data.users): %>
+      <div class="user">
+        <% if (user.active) { %>
+          <UserCard :user="user" @select="selectUser" />
+        <% } else { %>
+          <DisabledUser :user="user" />
+        <% } %>
+      </div>
+    <% endfor; %>
+    
+    <!-- Components -->
+    <Header title="My App" />
+    <UserList :users="this.data.users" :sortBy="'name'" />
+    
+    <!-- Components with children -->
+    <Container>
+      <p>Default slot content</p>
+      <span>More content</span>
+    </Container>
+    
+    <!-- Named slots -->
+    <Card>
+      <#header>
+        <h3>Card Title</h3>
+      </#header>
+      
+      <#body>
+        <p>Card content goes here</p>
+      </#body>
+      
+      <#footer>
+        <button>Action</button>
+      </#footer>
+    </Card>
+    
+    <!-- Slots with props -->
+    <DataTable :items="this.data.rows">
+      <#row let:item let:index>
+        <tr>
+          <td><%= index + 1 %></td>
+          <td><%= item.name %></td>
+          <td><%= item.value %></td>
+        </tr>
+      </#row>
+      
+      <#empty />
+    </DataTable>
+    
+    <!-- Self-closing slots -->
+    <Layout>
+      <#sidebar />
+      <#content>
+        <p>Main content</p>
+      </#content>
+    </Layout>
+    
+    <!-- Nested components and slots -->
+    <OuterComponent>
+      <#header>
+        <InnerComponent :data="headerData">
+          <#title>
+            <h1>Nested Title</h1>
+          </#title>
+        </InnerComponent>
+      </#header>
+    </OuterComponent>
+    
+    <!-- JavaScript in attributes -->
+    <div 
+      class="<%= this.data.active ? 'active' : 'inactive' %>"
+      style="color: <%= this.data.color %>; font-size: <%= this.data.size %>px"
+      data-id="<%= this.data.id %>"
+    >
+      Styled content
+    </div>
+    
+    <!-- Complex expressions -->
+    <p>
+      Total: <%= this.data.items.reduce((sum, item) => sum + item.value, 0) %>
+    </p>
+    
+    <!-- Script tags -->
+    <script>
+      // This is still HTML script, not JQHTML code
+      console.log('Component loaded');
+    </script>
+    
+    <!-- Style tags -->
+    <style>
+      .complex-component {
+        padding: 20px;
+      }
+    </style>
+  </div>
+</Define:ComplexComponent>
+
+<Define:SimpleComponent>
+  <p>Simple component</p>
+</Define:SimpleComponent>
+
+<%-- Multiple components in one file --%>
+<Define:AnotherComponent>
+  <div>
+    <h2>Another Component</h2>
+  </div>
+</Define:AnotherComponent>

@@ -2,7 +2,7 @@
   "name": "@jqhtml/vscode-extension",
   "displayName": "JQHTML",
   "description": "Syntax highlighting and language support for JQHTML template files",
-  "version": "2.3.49",
+  "version": "2.3.50",
   "publisher": "jqhtml",
   "license": "MIT",
   "publishConfig": {
@@ -46,10 +46,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HansonXyz/jqhtml-vscode.git"
+    "url": "git+https://github.com/jqhtml/jqhtml-vscode.git"
   },
   "bugs": {
-    "url": "https://github.com/HansonXyz/jqhtml-vscode/issues"
+    "url": "https://github.com/jqhtml/jqhtml-vscode/issues"
   },
   "activationEvents": [],
   "main": "./out/extension.js",
@@ -151,6 +151,6 @@
     "typescript": "^5.8.3"
   },
   "author": "",
-  "homepage": "https://github.com/HansonXyz/jqhtml-vscode#readme",
+  "homepage": "https://github.com/jqhtml/jqhtml-vscode#readme",
   "dependencies": null
 }

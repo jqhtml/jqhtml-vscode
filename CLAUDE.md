@@ -8,7 +8,7 @@ Copyright (c) 2026 HansonXyz. MIT License.
 
 ## What This Is
 
-Language support for `.jqhtml` template files — the component templating language of [JQHTML](https://github.com/HansonXyz/jqhtml), a jQuery-first component framework. Without this extension, `.jqhtml` files appear as plain text.
+Language support for `.jqhtml` template files — the component templating language of [JQHTML](https://github.com/jqhtml/jqhtml), a jQuery-first component framework. Without this extension, `.jqhtml` files appear as plain text.
 
 **Features:**
 - Syntax highlighting for jqhtml template syntax (`<Define:Component>`, `<%= %>`, `$` attributes, `@` event bindings, slots)
@@ -35,7 +35,7 @@ Language support for `.jqhtml` template files — the component templating langu
 - `$sid="name"` — component-scoped element IDs
 - `<Slot:name>` — named slot content
 
-For the full language reference, see `LLM_REFERENCE.md` in this repo and the main [JQHTML documentation](https://github.com/HansonXyz/jqhtml).
+For the full language reference, see `LLM_REFERENCE.md` in this repo and the main [JQHTML documentation](https://github.com/jqhtml/jqhtml).
 
 ## Building
 

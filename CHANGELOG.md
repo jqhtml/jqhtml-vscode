@@ -3,14 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## Unreleased
+## 2.3.55 (2026-08-24)
 
 ### Bug Fixes
 
+* **activation:** `activationEvents` was empty and the extension contributes no
+  commands, so nothing ever activated `out/extension.js` - Go to Definition, the
+  formatter, the component index and the Blade auto-spacer were all dead in an
+  installed build. Now activates on `jqhtml`, `blade` and `php`.
 * **syntax:** `<%!= %>` and `<%br= %>` were highlighted as `<% %>` code blocks. The
   code-block pattern's lookahead (`<%(?!=|--)`) admitted both forms and, being listed
   ahead of the expression pattern, always won the match. Tightened to
   `<%(?!=|--|!=|br=)` at both the document and in-tag levels.
+* **snippets:** the `slot` and `slotself` snippets emitted the retired `<#name>` slot
+  syntax, which the lexer no longer accepts - corrected to `<Slot:name>`. Dropped the
+  `slotprop` snippet: `let:prop` is an unimplemented parser TODO, not a feature.
+* **docs:** README and LLM_REFERENCE documented slots as `<#slotname>` "with let:prop
+  support"; both corrected.
 
 ### Features
 

@@ -71,24 +71,15 @@
   "Named Slot": {
     "prefix": "slot",
     "body": [
-      "<#${1:slotname}>",
+      "<Slot:${1:slotname}>",
       "\t$0",
-      "</#${1:slotname}>"
+      "</Slot:${1:slotname}>"
     ],
     "description": "Named slot definition"
   },
-  "Slot with Props": {
-    "prefix": "slotprop",
-    "body": [
-      "<#${1:slotname} let:${2:item}>",
-      "\t$0",
-      "</#${1:slotname}>"
-    ],
-    "description": "Named slot with props"
-  },
   "Self-Closing Slot": {
     "prefix": "slotself",
-    "body": "<#${1:slotname} />",
+    "body": "<Slot:${1:slotname} />",
     "description": "Self-closing slot"
   },
   "Comment Block": {

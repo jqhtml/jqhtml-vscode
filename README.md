@@ -11,7 +11,7 @@ Full syntax highlighting for all JQHTML constructs:
 - **Component Definitions**: `<Define:ComponentName>`
 - **Template Expressions**: `<%= expression %>`
 - **Control Flow**: `<% if (condition) { %> ... <% } %>`
-- **Slots**: `<#slotname>` with let:prop support
+- **Slots**: `<Slot:slotname>` for both definition and content
 - **Data Bindings**: `:property="value"`
 - **Event Handlers**: `@click="handler"`
 - **Special Attributes**: `$sid="name"`, `$property="value"`

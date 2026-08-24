@@ -118,7 +118,7 @@ Future versions may include:
 ### Component Usage
 ```jqhtml
 <MyComponent $sid="instance" @click="handleClick">
-  <#slot>Content here</#slot>
+  <Slot:slot>Content here</Slot:slot>
 </MyComponent>
 ```
 

@@ -43,6 +43,16 @@
     "body": "<%= ${1:expression} %>",
     "description": "Template expression"
   },
+  "Unescaped Expression": {
+    "prefix": "expraw",
+    "body": "<%!= ${1:expression} %>",
+    "description": "Unescaped output - the expression is written as raw HTML"
+  },
+  "Line-Break Expression": {
+    "prefix": "expbr",
+    "body": "<%br= ${1:expression} %>",
+    "description": "Escaped output with newlines converted to <br /> tags"
+  },
   "Scoped ID": {
     "prefix": "$id",
     "body": "$id=\"${1:elementId}\"",

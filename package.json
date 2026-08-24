@@ -94,6 +94,14 @@
       {
         "language": "jqhtml",
         "path": "./snippets/jqhtml.json"
+      },
+      {
+        "language": "javascript",
+        "path": "./snippets/jqhtml-component.json"
+      },
+      {
+        "language": "typescript",
+        "path": "./snippets/jqhtml-component.json"
       }
     ],
     "configurationDefaults": {

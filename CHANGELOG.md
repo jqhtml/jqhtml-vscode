@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Bug Fixes
+
+* **syntax:** `<%!= %>` and `<%br= %>` were highlighted as `<% %>` code blocks. The
+  code-block pattern's lookahead (`<%(?!=|--)`) admitted both forms and, being listed
+  ahead of the expression pattern, always won the match. Tightened to
+  `<%(?!=|--|!=|br=)` at both the document and in-tag levels.
+
+### Features
+
+* **snippets:** added `expraw` (`<%!= %>`) and `expbr` (`<%br= %>`) template snippets.
+* **snippets:** added a JavaScript/TypeScript snippet set for component classes,
+  covering the lifecycle hooks (`on_create`, `on_load`, `on_loaded`, `on_render`,
+  `on_ready`, `on_stop`, `on_viewport_resize`), `gate_load()`, the `on()`/`once()`/
+  `trigger()` event API, and the `_load_only` / `_load_render_only` /
+  `_force_initial_render` lifecycle flags. All prefixes are namespaced `jq*`.
+
 ## 2.2.13 (2025-09-21)
 
 **Note:** Version bump only for package @jqhtml/vscode-extension

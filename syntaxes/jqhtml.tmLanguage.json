@@ -104,7 +104,7 @@
       "patterns": [
         {
           "name": "meta.embedded.block.javascript",
-          "begin": "<%(?!=|--)",
+          "begin": "<%(?!=|--|!=|br=)",
           "beginCaptures": {
             "0": { "name": "punctuation.section.embedded.begin.jqhtml" }
           },
@@ -379,7 +379,7 @@
       "patterns": [
         {
           "name": "meta.embedded.block.javascript",
-          "begin": "<%(?!=|--)",
+          "begin": "<%(?!=|--|!=|br=)",
           "beginCaptures": {
             "0": { "name": "punctuation.section.embedded.begin.jqhtml" }
           },

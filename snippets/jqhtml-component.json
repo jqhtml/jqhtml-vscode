@@ -1,0 +1,117 @@
+{
+  "JQHTML Component Class": {
+    "prefix": "jqcomponent",
+    "body": [
+      "class ${1:Component_Name} extends Jqhtml_Component {",
+      "\ton_create() {",
+      "\t\t$0",
+      "\t}",
+      "",
+      "\tasync on_load() {",
+      "\t}",
+      "",
+      "\ton_render() {",
+      "\t}",
+      "}"
+    ],
+    "description": "JQHTML component class with the common lifecycle hooks"
+  },
+  "on_create() Hook": {
+    "prefix": "jqon_create",
+    "body": [
+      "on_create() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Runs once when the component instance is created, before the first render"
+  },
+  "on_load() Hook": {
+    "prefix": "jqon_load",
+    "body": [
+      "async on_load() {",
+      "\tthis.data = ${0:await fetch_data(this.args)};",
+      "}"
+    ],
+    "description": "Fetch asynchronous data. Only this.args and this.data are available here"
+  },
+  "on_loaded() Hook": {
+    "prefix": "jqon_loaded",
+    "body": [
+      "on_loaded() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Process data after on_load() resolves, before the re-render (was after_load())"
+  },
+  "on_render() Hook": {
+    "prefix": "jqon_render",
+    "body": [
+      "on_render() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Runs after every render, once the component DOM exists"
+  },
+  "on_ready() Hook": {
+    "prefix": "jqon_ready",
+    "body": [
+      "async on_ready() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Runs once this component and all of its children are ready"
+  },
+  "on_stop() Hook": {
+    "prefix": "jqon_stop",
+    "body": [
+      "on_stop() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Tear down timers, listeners and other resources when the component stops"
+  },
+  "on_viewport_resize() Hook": {
+    "prefix": "jqon_viewport_resize",
+    "body": [
+      "on_viewport_resize(viewport_width) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Synchronous layout hook: after on_render()/on_ready() and on debounced window resize"
+  },
+  "gate_load()": {
+    "prefix": "jqgate_load",
+    "body": "this.gate_load(${1:promise});$0",
+    "description": "Delay the first on_load() until the promise settles. Register gates in on_create()"
+  },
+  "Event Listener": {
+    "prefix": "jqon",
+    "body": "this.on('${1:event_name}', (component, data) => {\n\t$0\n});",
+    "description": "Subscribe to a component event"
+  },
+  "One-Shot Event Listener": {
+    "prefix": "jqonce",
+    "body": "this.once('${1:loaded}', (component, data) => {\n\t$0\n});",
+    "description": "Subscribe to a component event once, then deregister"
+  },
+  "Trigger Event": {
+    "prefix": "jqtrigger",
+    "body": "this.trigger('${1:event_name}'${2:, data});$0",
+    "description": "Trigger a component event"
+  },
+  "Load-Only Lifecycle Flag": {
+    "prefix": "jqload_only",
+    "body": "this._load_only = true;$0",
+    "description": "Truncate the lifecycle to on_create() + on_load(): no render, children, on_render, on_loaded or on_ready"
+  },
+  "Load-Render-Only Lifecycle Flag": {
+    "prefix": "jqload_render_only",
+    "body": "this._load_render_only = true;$0",
+    "description": "on_create + render + on_load + re-render, skipping on_render, on_loaded and on_ready"
+  },
+  "Force Initial Render Flag": {
+    "prefix": "jqforce_initial_render",
+    "body": "this._force_initial_render = true;$0",
+    "description": "Force the initial render even when the component boots detached"
+  }
+}

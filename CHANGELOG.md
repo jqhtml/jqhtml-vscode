@@ -3,23 +3,37 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.3.57 (2026-08-25)
+
+### Features
+
+* **branding:** the project website at https://jqhtml.org/ is listed as the
+  extension's homepage.
+* **docs:** the README opens with an introduction to JQHTML and documents the full
+  snippet set for templates and component classes.
+* **marketplace:** added the Formatters category, alongside Programming Languages and
+  Snippets.
+
+### Build
+
+* **build.sh:** `./build.sh` produces a release build - compiled with
+  `tsconfig.release.json` so the packaged extension ships without sourcemaps - and
+  packages the `.vsix`. `./build.sh --dev` compiles with sourcemaps for local
+  development.
+
 ## 2.3.55 (2026-08-24)
 
 ### Bug Fixes
 
-* **activation:** `activationEvents` was empty and the extension contributes no
-  commands, so nothing ever activated `out/extension.js` - Go to Definition, the
-  formatter, the component index and the Blade auto-spacer were all dead in an
-  installed build. Now activates on `jqhtml`, `blade` and `php`.
+* **activation:** the extension activates on `jqhtml`, `blade` and `php`, enabling Go
+  to Definition, the formatter, the component index and Blade auto-spacing.
 * **syntax:** `<%!= %>` and `<%br= %>` were highlighted as `<% %>` code blocks. The
   code-block pattern's lookahead (`<%(?!=|--)`) admitted both forms and, being listed
   ahead of the expression pattern, always won the match. Tightened to
   `<%(?!=|--|!=|br=)` at both the document and in-tag levels.
-* **snippets:** the `slot` and `slotself` snippets emitted the retired `<#name>` slot
-  syntax, which the lexer no longer accepts - corrected to `<Slot:name>`. Dropped the
-  `slotprop` snippet: `let:prop` is an unimplemented parser TODO, not a feature.
-* **docs:** README and LLM_REFERENCE documented slots as `<#slotname>` "with let:prop
-  support"; both corrected.
+* **snippets:** the `slot` and `slotself` snippets now emit the current `<Slot:name>`
+  syntax.
+* **docs:** README and LLM_REFERENCE document the current `<Slot:name>` slot syntax.
 
 ### Features
 

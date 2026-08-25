@@ -2,6 +2,22 @@
 
 Syntax highlighting and language support for JQHTML template files.
 
+## Introduction
+
+JQHTML is a component templating system built on jQuery. It lets you compose logical
+concepts in HTML rather than assembling visual primitives with cryptic class names.
+
+### What JQHTML Is
+
+JQHTML provides:
+
+- Component-based architecture without virtual DOM
+- Template compilation to efficient JavaScript
+- Deterministic lifecycle (create -> render -> load -> ready)
+- Direct jQuery integration - components ARE jQuery objects
+
+Full documentation lives at [jqhtml.org](https://jqhtml.org/).
+
 ## Features
 
 ### Syntax Highlighting
@@ -28,7 +44,7 @@ Full syntax highlighting for all JQHTML constructs:
 
 ### Code Snippets
 
-14 snippets for common patterns:
+Snippets for common template patterns, in `.jqhtml` files:
 
 | Prefix | Description |
 |--------|-------------|
@@ -37,41 +53,36 @@ Full syntax highlighting for all JQHTML constructs:
 | `if{` | If statement (brace style) |
 | `for{` | For loop (brace style) |
 | `exp` | Expression `<%= %>` |
+| `expraw` | Unescaped expression `<%!= %>` |
+| `expbr` | Expression with nl2br `<%br= %>` |
 | `$id` | Scoped ID attribute |
 | `:prop` | Property binding |
 | `@event` | Event handler |
 | `slot` | Named slot |
-| `slotprop` | Slot with props |
 | `slotself` | Self-closing slot |
 | `comment` | Comment block |
 | `comp` | Component usage |
 | `compslot` | Component with slot content |
 
-## Installation
+And for component classes, in JavaScript and TypeScript files:
 
-### From Marketplace (when published)
-
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
-3. Search for "JQHTML"
-4. Click Install
-
-### From Source (Development)
-
-1. Clone the JQHTML repository
-2. Navigate to `packages/vscode-extension`
-3. Run `npm install`
-4. Run `npm run compile`
-5. Copy the folder to VS Code extensions directory:
-   - Windows: `%USERPROFILE%\.vscode\extensions`
-   - macOS/Linux: `~/.vscode/extensions`
-6. Restart VS Code
-
-### Using .vsix Package
-
-1. Package the extension: `vsce package`
-2. In VS Code: Extensions → ... → Install from VSIX
-3. Select the generated .vsix file
+| Prefix | Description |
+|--------|-------------|
+| `jqcomponent` | Component class with the common lifecycle hooks |
+| `jqon_create` | `on_create()` hook |
+| `jqon_load` | `on_load()` hook |
+| `jqon_loaded` | `on_loaded()` hook |
+| `jqon_render` | `on_render()` hook |
+| `jqon_ready` | `on_ready()` hook |
+| `jqon_stop` | `on_stop()` hook |
+| `jqon_viewport_resize` | `on_viewport_resize()` hook |
+| `jqgate_load` | `gate_load()` call |
+| `jqon` | Event listener |
+| `jqonce` | One-shot event listener |
+| `jqtrigger` | Trigger an event |
+| `jqload_only` | `_load_only` lifecycle flag |
+| `jqload_render_only` | `_load_render_only` lifecycle flag |
+| `jqforce_initial_render` | `_force_initial_render` lifecycle flag |
 
 ## Usage
 
@@ -158,84 +169,10 @@ You can override these in your VS Code settings.
 
 The extension uses standard TextMate scopes and works with all VS Code themes. For best results, use a theme with good HTML/JavaScript support.
 
-### Scope Reference
-
-- `entity.name.class.component.jqhtml` - Component names
-- `meta.tag.slot.jqhtml` - Slot tags (header, row, footer, etc.)
-- `keyword.control.slot.jqhtml` - Slot `:` prefix (`Slot:name`) and the `$` prefix on special attributes
-- `keyword.control.flow.jqhtml` - Control flow keywords (if, for, etc.)
-- `meta.attribute.special.jqhtml` - Special (`$`) attribute rule
-- `punctuation.definition.attribute.binding.jqhtml` - `:` prefix
-- `punctuation.definition.attribute.event.jqhtml` - `@` prefix
-
-## Known Issues
-
-### Bracket Matching Errors with Split Control Flow
-
-When using control flow split across multiple `<% %>` blocks, VS Code may show bracket matching errors:
-
-```jqhtml
-<% if (condition) { %>
-  <div>Content</div>
-<% } else if (otherCondition) { %>  ⚠️ VS Code shows bracket error here
-  <div>Other content</div>
-<% } %>
-```
-
-**Why this happens:** VS Code's bracket matcher can't track bracket state across separate template blocks. It sees a closing `}` without a matching opening `{` in the same block.
-
-**Solution:** The extension automatically disables bracket colorization for `.jqhtml` files:
-
-```json
-{
-  "[jqhtml]": {
-    "editor.bracketPairColorization.enabled": false,
-    "editor.guides.bracketPairs": false
-  }
-}
-```
-
-These visual errors don't affect functionality.
-
-### Other Known Issues
-
-- Complex nested template expressions may not highlight perfectly
-- Some edge cases in mixed HTML/JavaScript contexts
-
-## Contributing
-
-Contributions are welcome! The extension source is in the JQHTML repository under `packages/vscode-extension`.
-
-### Development
-
-1. Clone the repository
-2. Open in VS Code
-3. Run `npm install`
-4. Press F5 to launch a new VS Code window with the extension
-5. Open a `.jqhtml` file to test
-
-### Testing
-
-Testing is currently manual only (there is no automated test suite - `npm test` is a stub). Create test files in `test-files/` to verify syntax highlighting:
-
-```bash
-# Manual testing
-# 1. Launch extension (F5)
-# 2. Open test files
-# 3. Verify highlighting
-```
-
 ## License
 
-MIT License - See LICENSE file in the JQHTML repository
+MIT — Copyright (c) 2026 [HansonXyz](https://github.com/hansonxyz)
 
 ## Changelog
 
-### 2.0.0
-- Initial release
-- Full JQHTML v2 syntax support
-- Brace-style control flow
-- Slot syntax with let:prop
-- Data binding and event handlers
-- Component highlighting
-- Code snippets
+See [CHANGELOG.md](CHANGELOG.md).

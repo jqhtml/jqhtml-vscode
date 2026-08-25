@@ -1,0 +1,22 @@
+# README backlog
+
+Work items for the extension's README and marketplace listing. Not shipped in the
+.vsix - `files` in package.json does not include this file.
+
+## TODO
+
+- [ ] **Screenshot.** The listing has no image. A syntax highlighting extension is
+      judged almost entirely on one picture of highlighted code, so this is the
+      highest-value addition to the page.
+
+      - Use the `<Define:UserCard>` sample already in the Usage section: it shows
+        expressions, brace control flow, `$sid` and `@click` in twelve lines.
+      - Capture in a common dark theme (Dark+) at a readable font size, cropped to
+        the code - no title bar, no sidebar, no filename giveaways.
+      - Commit under `images/` and reference it with a repo-relative path near the
+        top of the README, above or just below the Introduction.
+      - Add `images` back to the `files` array in package.json so it ships in the
+        .vsix, and confirm it renders on the marketplace page (relative image paths
+        need the repository field set, which it is).
+      - An animated GIF of Go to Definition or Format Document would carry the
+        IntelliSense and Formatting sections the same way, if it is cheap to make.

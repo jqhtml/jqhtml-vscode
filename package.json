@@ -2,7 +2,7 @@
   "name": "@jqhtml/vscode-extension",
   "displayName": "JQHTML",
   "description": "Syntax highlighting and language support for JQHTML template files",
-  "version": "2.3.55",
+  "version": "2.3.57",
   "publisher": "jqhtml",
   "license": "MIT",
   "publishConfig": {
@@ -11,31 +11,32 @@
   },
   "scripts": {
     "vscode:prepublish": "echo Skipping prepublish",
-    "compile": "tsc -p ./ || echo 'TypeScript compilation issues, continuing...'",
+    "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "echo 'No tests configured'",
-    "build": "npm run compile"
+    "build": "./build.sh",
+    "compile:release": "tsc -p ./tsconfig.release.json",
+    "build:dev": "./build.sh --dev"
   },
   "files": [
     "out",
     "syntaxes",
     "snippets",
-    "images",
     "language-configuration.json",
     "blade-language-configuration.json",
     ".version",
     "README.md",
     "LLM_REFERENCE.md",
     "CHANGELOG.md",
-    "LICENSE",
-    "*.vsix"
+    "LICENSE"
   ],
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
     "Programming Languages",
-    "Snippets"
+    "Snippets",
+    "Formatters"
   ],
   "keywords": [
     "jqhtml",
@@ -68,11 +69,7 @@
         "extensions": [
           ".jqhtml"
         ],
-        "configuration": "./language-configuration.json",
-        "icon": {
-          "light": "./images/jqhtml-icon.svg",
-          "dark": "./images/jqhtml-icon.svg"
-        }
+        "configuration": "./language-configuration.json"
       },
       {
         "id": "blade",
@@ -163,6 +160,6 @@
     "typescript": "^5.8.3"
   },
   "author": "",
-  "homepage": "https://github.com/jqhtml/jqhtml-vscode#readme",
+  "homepage": "https://jqhtml.org/",
   "dependencies": null
 }

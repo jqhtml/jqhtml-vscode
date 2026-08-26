@@ -5,12 +5,12 @@
   "brackets": [
     ["<", ">"],
     ["<%", "%>"],
-    ["<#", "</#"]
+    ["<Slot:", "</Slot:"]
   ],
   "autoClosingPairs": [
     { "open": "<", "close": ">" },
     { "open": "<%", "close": "%>" },
-    { "open": "<#", "close": "</#" },
+    { "open": "<Slot:", "close": "</Slot:" },
     { "open": "<Define:", "close": "</Define:" },
     { "open": "\"", "close": "\"", "notIn": ["string"] },
     { "open": "'", "close": "'", "notIn": ["string"] },

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.3.58 (2026-08-26)
+
+### Bug Fixes
+
+* **editor:** the auto-closing pair and bracket pair for slots use the current
+  `<Slot:name>` syntax, so typing a slot completes to `</Slot:`.
+
 ## 2.3.57 (2026-08-25)
 
 ### Features

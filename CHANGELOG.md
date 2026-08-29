@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.3.59 (2026-08-29)
+
+### Bug Fixes
+
+* **indexing:** the component index and Go to Definition honour `files.exclude`,
+  `search.exclude` and `files.watcherExclude`. `workspace.findFiles` replaces the
+  default excludes when given an explicit pattern, so passing `**/node_modules/**`
+  had been suppressing the user's own settings: files hidden from the Explorer and
+  from Find in Files were still indexed, and Go to Definition could jump into them.
+  File-watcher events are filtered through the same rules, and hiding a folder
+  re-indexes the workspace rather than leaving stale definitions behind.
+
 ## 2.3.58 (2026-08-26)
 
 ### Bug Fixes

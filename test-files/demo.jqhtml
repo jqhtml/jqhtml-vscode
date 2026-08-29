@@ -16,7 +16,7 @@
     </form>
     
     <%-- Todo list with both syntax styles --%>
-    <% if (this.data.todos.length > 0): %>
+    <% if (this.data.todos.length > 0) { %>
       <ul class="todo-list">
         <% for (const todo of this.data.todos) { %>
           <TodoItem :todo="todo" @complete="completeTodo" @delete="deleteTodo">
@@ -26,9 +26,9 @@
           </TodoItem>
         <% } %>
       </ul>
-    <% else: %>
+    <% } else { %>
       <p class="empty">No todos yet!</p>
-    <% endif; %>
+    <% } %>
     
     <%-- Stats section --%>
     <div class="stats">

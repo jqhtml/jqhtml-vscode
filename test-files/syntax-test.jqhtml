@@ -28,15 +28,15 @@
     </button>
     
     <!-- Control flow - Colon style -->
-    <% if (this.data.showDetails): %>
+    <% if (this.data.showDetails) { %>
       <div class="details">
-        <% if (this.data.isAdmin): %>
+        <% if (this.data.isAdmin) { %>
           <span class="admin">Admin User</span>
-        <% else: %>
+        <% } else { %>
           <span class="user">Regular User</span>
-        <% endif; %>
+        <% } %>
       </div>
-    <% endif; %>
+    <% } %>
     
     <!-- Control flow - Brace style -->
     <% if (this.data.items && this.data.items.length > 0) { %>
@@ -55,7 +55,7 @@
     <% } %>
     
     <!-- Mixed styles (both work) -->
-    <% for (const user of this.data.users): %>
+    <% for (const user of this.data.users) { %>
       <div class="user">
         <% if (user.active) { %>
           <UserCard :user="user" @select="selectUser" />
@@ -63,7 +63,7 @@
           <DisabledUser :user="user" />
         <% } %>
       </div>
-    <% endfor; %>
+    <% } %>
     
     <!-- Components -->
     <Header title="My App" />

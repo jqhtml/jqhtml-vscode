@@ -9,9 +9,9 @@
     <%= this.args.label <bar> %>
   </div>
   
-  <% if (true <baz>): %>
+  <% if (true <baz>) { %>
     <p>This has an error in the condition</p>
-  <% endif; %>
+  <% } %>
   
   <!-- This is valid - HTML tags outside of JS blocks -->
   <bar>This is actually valid JQHTML</bar>

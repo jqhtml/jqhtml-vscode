@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { build_exclude_pattern } from './excludes';
 import { JqhtmlComponentIndex } from './componentIndex';
 
 /**
@@ -421,11 +422,36 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
     /**
      * Search for JS class and optionally method
      */
+    /**
+     * Find the workspace .js files that the user can actually see.
+     *
+     * findFiles replaces the default excludes when given an explicit pattern, so the
+     * merged pattern from excludes.ts carries files.exclude, search.exclude,
+     * files.watcherExclude and node_modules.
+     */
+    private async findWorkspaceJsFiles(): Promise<vscode.Uri[]> {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders) {
+            return [];
+        }
+
+        const files: vscode.Uri[] = [];
+        for (const folder of folders) {
+            files.push(...await vscode.workspace.findFiles(
+                new vscode.RelativePattern(folder, '**/*.js'),
+                build_exclude_pattern(folder)
+            ));
+        }
+        return files;
+    }
+
     private async searchJsClassDefinition(
         context: { className: string, memberName?: string, isFirstSegment: boolean }
     ): Promise<vscode.Location | undefined> {
 
-        const jsFiles = await vscode.workspace.findFiles('**/*.js', '**/node_modules/**');
+        // Excluded folders are hidden from the user, so a definition found there is
+        // one they cannot search for - see excludes.ts.
+        const jsFiles = await this.findWorkspaceJsFiles();
 
         for (const fileUri of jsFiles) {
             const fileDoc = await vscode.workspace.openTextDocument(fileUri);
@@ -468,7 +494,9 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
      * Only called for single-segment expressions where first segment is not "this"
      */
     private async searchStandaloneJsFunction(functionName: string): Promise<vscode.Location | undefined> {
-        const jsFiles = await vscode.workspace.findFiles('**/*.js', '**/node_modules/**');
+        // Excluded folders are hidden from the user, so a definition found there is
+        // one they cannot search for - see excludes.ts.
+        const jsFiles = await this.findWorkspaceJsFiles();
 
         for (const fileUri of jsFiles) {
             const fileDoc = await vscode.workspace.openTextDocument(fileUri);

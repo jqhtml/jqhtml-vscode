@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { build_exclude_pattern, is_excluded, on_exclude_settings_changed } from './excludes';
 
 /**
  * Component definition interface
@@ -21,6 +22,7 @@ export interface ComponentDefinition {
 export class JqhtmlComponentIndex {
     private componentMap: Map<string, ComponentDefinition> = new Map();
     private fileWatcher: vscode.FileSystemWatcher | undefined;
+    private configWatcher: vscode.Disposable | undefined;
     private indexPromise: Promise<void> | undefined;
 
     constructor() {
@@ -29,6 +31,10 @@ export class JqhtmlComponentIndex {
 
         // Watch for changes to .jqhtml files
         this.setupFileWatcher();
+
+        // Hiding a folder should drop it from the index, not leave stale definitions
+        // that Go to Definition can still jump into.
+        this.configWatcher = on_exclude_settings_changed(() => this.reindexWorkspace());
     }
 
     /**
@@ -37,9 +43,16 @@ export class JqhtmlComponentIndex {
     private setupFileWatcher(): void {
         this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/*.jqhtml');
 
-        // Re-index when files are created, changed, or deleted
-        this.fileWatcher.onDidCreate(uri => this.indexFile(uri));
-        this.fileWatcher.onDidChange(uri => this.indexFile(uri));
+        // Re-index when files are created, changed, or deleted. Watcher events fire
+        // for hidden files too, so each one is checked against the exclusions before
+        // it can re-enter the index. Deletions are always honoured - dropping an
+        // entry can only ever make the index more correct.
+        this.fileWatcher.onDidCreate(async uri => {
+            if (!await is_excluded(uri)) { this.indexFile(uri); }
+        });
+        this.fileWatcher.onDidChange(async uri => {
+            if (!await is_excluded(uri)) { this.indexFile(uri); }
+        });
         this.fileWatcher.onDidDelete(uri => this.removeFileFromIndex(uri));
     }
 
@@ -72,7 +85,7 @@ export class JqhtmlComponentIndex {
         for (const folder of workspaceFolders) {
             const files = await vscode.workspace.findFiles(
                 new vscode.RelativePattern(folder, '**/*.jqhtml'),
-                new vscode.RelativePattern(folder, '**/node_modules/**')
+                build_exclude_pattern(folder)
             );
             allFiles.push(...files);
         }
@@ -202,6 +215,10 @@ export class JqhtmlComponentIndex {
      * Dispose of resources
      */
     public dispose(): void {
+        if (this.configWatcher) {
+            this.configWatcher.dispose();
+            this.configWatcher = undefined;
+        }
         if (this.fileWatcher) {
             this.fileWatcher.dispose();
         }

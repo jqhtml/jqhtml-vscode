@@ -124,11 +124,11 @@ Future versions may include:
 
 ### Control Flow
 ```jqhtml
-<% for (let item of this.data.items): %>
+<% for (let item of this.data.items) { %>
   <div $sid="item_<%= item.id %>">
     <%= item.name %>
   </div>
-<% endfor; %>
+<% } %>
 ```
 
 ## VS Code API Usage

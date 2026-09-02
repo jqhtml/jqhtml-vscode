@@ -1,0 +1,22 @@
+<Define:Multi>
+
+    <Widget
+        $a=1
+        $b=2
+        />
+    <p>after self-closing</p>
+    <Panel
+        $title="x"
+        >
+        <p>child</p>
+    </Panel>
+    <img
+        src="x.png"
+        alt="y">
+    <p>after img</p>
+    <Universal_Error_Page_Component
+        $error_data=this.data.error_data
+        $back_url=Rsx.Route('Engagements_Index_Action')
+        />
+
+</Define:Multi>

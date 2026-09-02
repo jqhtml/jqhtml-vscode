@@ -1,0 +1,14 @@
+<Define:Slots>
+<%-- multi
+line <div> comment with <% code %> --%>
+<!-- html
+<div> comment -->
+<Card>
+<Slot:header><h3>T</h3></Slot:header>
+<Slot:body>
+<p>b</p>
+</Slot:body>
+</Card>
+<!DOCTYPE html>
+<p>x</p>
+</Define:Slots>

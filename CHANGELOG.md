@@ -3,6 +3,47 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.3.60 (2026-09-02)
+
+### Bug Fixes
+
+* **formatter:** a `'$'` string literal in a `<% %>` block no longer corrupts the
+  document on save. Escaped blocks were restored with `String.replace(placeholder,
+  block)`, whose string form interprets `$`-sequences in the replacement: the two
+  characters `$'` inside `'$' + n` mean "everything after the match", so restoring
+  that one block spliced the rest of the file in at that point, once per retry of
+  the ten-pass restore loop. Restoration is now a single concatenating scan that
+  parses nothing.
+* **formatter:** a `<% %>` pair inside a JS comment within a code block no longer
+  ends the block early; the scanner tracks `<%`/`%>` nesting like the parser does.
+* **formatter:** a `<` inside a quoted attribute value (`data-tooltip="x < y"`) or in
+  text no longer counts as an opening tag and shifts the rest of the file right.
+* **formatter:** braces inside JS strings, template literals, regex literals and
+  comments are no longer counted for indentation.
+* **formatter:** `<pre>` and `<textarea>` bodies are carried through verbatim
+  instead of being re-indented.
+* **formatter:** custom elements whose name begins with a void-element name
+  (`<track-list>`, `<link-preview>`) nest their children; `<col>` and `<wbr>` added
+  to the void list.
+* **formatter:** `<%}else{%>` and other unspaced else forms are dedented.
+* **formatter:** honours `editor.insertSpaces`; keeps CRLF line endings and the
+  document's final-newline state instead of normalising them on every save.
+
+### Features
+
+* **formatter:** Format Selection (range formatting) is supported.
+* **formatter:** edits are minimal - only the changed span of lines is replaced,
+  so folding, selection and undo survive a format.
+* **formatter:** multi-line `<% %>` blocks and comments are re-based one level
+  under their opening line, preserving their internal relative indentation, with
+  the closing `%>` / `--%>` aligned to the opener.
+* **formatter:** when a document cannot be formatted (unterminated comment or code
+  block), a warning names the reason and line instead of silently doing nothing.
+* **tooling:** `npm test` runs a fixture-based formatter suite
+  (`tools/test-formatter.js`, fixtures in `tools/fixtures/`), and
+  `node tools/format-cli.js <file>` formats any file with the exact code the
+  extension ships, outside VS Code.
+
 ## 2.3.59 (2026-08-29)
 
 ### Bug Fixes

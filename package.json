@@ -2,7 +2,7 @@
   "name": "@jqhtml/vscode-extension",
   "displayName": "JQHTML",
   "description": "Syntax highlighting and language support for JQHTML template files",
-  "version": "2.3.59",
+  "version": "2.3.60",
   "publisher": "jqhtml",
   "license": "MIT",
   "publishConfig": {
@@ -13,10 +13,11 @@
     "vscode:prepublish": "echo Skipping prepublish",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "echo 'No tests configured'",
+    "test": "node tools/test-formatter.js",
     "build": "./build.sh",
     "compile:release": "tsc -p ./tsconfig.release.json",
-    "build:dev": "./build.sh --dev"
+    "build:dev": "./build.sh --dev",
+    "format": "node tools/format-cli.js"
   },
   "files": [
     "out",

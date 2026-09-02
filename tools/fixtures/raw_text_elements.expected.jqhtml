@@ -1,0 +1,17 @@
+<Define:Raw>
+
+    <div>
+        <pre>
+line one
+    line two (indented on purpose)
+      <% if (x) { %>keep<% } %>
+</pre>
+        <textarea name="t">
+  keep me
+    and me
+</textarea>
+        <pre class="inline">short</pre>
+        <p>after</p>
+    </div>
+
+</Define:Raw>

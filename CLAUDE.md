@@ -16,6 +16,7 @@ Language support for `.jqhtml` template files — the component templating langu
 - IntelliSense for component attributes
 - Bracket matching for template tags
 - Error highlighting for malformed syntax
+- Document and selection formatting (`src/formatter.ts`)
 - Optional highlighting of JQHTML components inside Laravel Blade (`.blade.php`) files
 
 ## JQHTML Syntax in 30 Seconds
@@ -45,6 +46,24 @@ npm run build     # or: ./build.sh
 ```
 
 TypeScript errors about a missing 'vscode' module during standalone builds are expected and can be ignored.
+
+## Testing the Formatter
+
+The formatter is pure (`format_jqhtml(text, options)` in `src/formatter.ts`) and is
+exercised outside VS Code by loading the compiled `out/formatter.js` with a stubbed
+`vscode` module - the same code the extension ships, not a copy.
+
+```bash
+npm run compile
+npm test                                   # fixture suite: tools/fixtures/*.jqhtml vs *.expected.jqhtml
+node tools/test-formatter.js --update      # rewrite expected files - review the diff, they are the spec
+node tools/format-cli.js path/to/file.jqhtml   # format one file to file.jqhtml.formatted (never in place)
+```
+
+Every fixture is checked for exact expected output, idempotence (`format(format(x)) === format(x)`),
+no leaked placeholders, and - when `@jqhtml/parser` is reachable - that the output still compiles.
+`tools/fixtures/errors/` holds documents the formatter must refuse, with the expected message.
+Add a fixture for every formatter bug fixed.
 
 ## Packaging & Installing Locally
 

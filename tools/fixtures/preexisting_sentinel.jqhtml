@@ -1,0 +1,4 @@
+<Define:X>
+<p>@@__SAFE__(3) and a  literal</p>
+<% const a = 1; %>
+</Define:X>

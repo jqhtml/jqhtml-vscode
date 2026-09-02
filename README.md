@@ -129,7 +129,16 @@ Component definitions can be folded at the `<Define:>` level:
 
 ### Formatting Support
 
-The extension ships a custom, JQHTML-aware document formatter (not VS Code's generic HTML formatter) that understands `<%-- --%>` comments, `<% %>` code blocks, self-closing tags, and JQHTML's indentation rules. Run it via **Format Document** or your usual format-on-save setting.
+The extension ships a custom, JQHTML-aware document formatter (not VS Code's generic HTML formatter). Run it via **Format Document**, **Format Selection**, or your usual format-on-save setting.
+
+- Indents by HTML nesting and by the braces in `<% %>` code, including `if / else` chains split across blocks
+- Multi-line `<% %>` blocks and `<%-- --%>` comments keep their internal layout and sit one level under the line that opens them
+- `<pre>` and `<textarea>` bodies are never touched
+- Multi-line tags get their attributes indented under the tag
+- Honours your `tabSize` / `insertSpaces` settings and the file's existing line endings
+- Never rewrites content - only leading whitespace changes
+
+If a document cannot be formatted (an unterminated `<%`, `<%--` or `<!--`), the formatter leaves it alone and says why.
 
 ### Laravel Blade Support
 

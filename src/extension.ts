@@ -68,11 +68,10 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
 
     // Register the formatter
     const formatter = new JqhtmlFormattingEditProvider();
-    const formatterProvider = vscode.languages.registerDocumentFormattingEditProvider(
-        'jqhtml',
-        formatter
+    context.subscriptions.push(
+        vscode.languages.registerDocumentFormattingEditProvider('jqhtml', formatter),
+        vscode.languages.registerDocumentRangeFormattingEditProvider('jqhtml', formatter)
     );
-    context.subscriptions.push(formatterProvider);
 
     // Register definition provider for goto definition (Ctrl+Click, F12)
     const definitionProvider = new JqhtmlDefinitionProvider(componentIndex);

@@ -1,0 +1,19 @@
+<Define:Voids>
+<div>
+<input type="text">
+<br>
+<hr/>
+<col>
+<wbr>
+<track-list>
+<li>custom element</li>
+</track-list>
+<link-preview>
+<span>x</span>
+</link-preview>
+<Input $x=1>
+<span>component named Input nests</span>
+</Input>
+<p>after</p>
+</div>
+</Define:Voids>

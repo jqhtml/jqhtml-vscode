@@ -1,0 +1,11 @@
+<Define:Money_Demo>
+
+    <%
+        const _m = (n) => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const a = '$&'; const b = '$`'; const c = '$$'; const d = '$1'; const e = '$<n>';
+    %>
+    <div class="total">
+        <span><%= _m(this.data.amount) %></span>
+    </div>
+
+</Define:Money_Demo>

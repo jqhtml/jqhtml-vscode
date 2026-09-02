@@ -1,0 +1,9 @@
+<Define:Nested>
+<%
+// never put <% %> control-flow inside an attribute
+const x = 1;
+%>
+<div>
+<span><%= x %></span>
+</div>
+</Define:Nested>

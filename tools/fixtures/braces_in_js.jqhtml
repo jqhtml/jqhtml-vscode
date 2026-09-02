@@ -1,0 +1,18 @@
+<Define:Braces>
+<% const s = '{'; %>
+<p>after brace string</p>
+<% const t = "}"; %>
+<% const u = `${a}{`; %>
+<% const re = /\{/; %>
+<% const v = 4 / 2; /* } */ %>
+<% // }
+%>
+<% if (a) { %>
+<p>inside</p>
+<% } else if (b) { %>
+<p>else if</p>
+<%}else{%>
+<p>else</p>
+<% } %>
+<p>done</p>
+</Define:Braces>

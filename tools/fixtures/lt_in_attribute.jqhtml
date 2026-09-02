@@ -1,0 +1,8 @@
+<Define:Cmp>
+<span data-tooltip="x < y">cmp</span>
+<span title='a <b> c'>quoted</span>
+<p>after tooltip</p>
+<div>
+<p>1 < 2 in text</p>
+</div>
+</Define:Cmp>

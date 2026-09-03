@@ -2,7 +2,7 @@
   "name": "@jqhtml/vscode-extension",
   "displayName": "JQHTML",
   "description": "Syntax highlighting and language support for JQHTML template files",
-  "version": "2.3.60",
+  "version": "2.3.61",
   "publisher": "jqhtml",
   "license": "MIT",
   "publishConfig": {

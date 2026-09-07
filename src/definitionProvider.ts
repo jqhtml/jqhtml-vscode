@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { build_exclude_pattern } from './excludes';
 import { JqhtmlComponentIndex } from './componentIndex';
+import { COMPONENT_NAME_SOURCE, COMPONENT_NAME_WORD } from './component_name';
+
+const DEFINE_NAME = new RegExp(`<Define:(${COMPONENT_NAME_SOURCE})`);
 
 /**
  * JQHTML Definition Provider
@@ -46,7 +49,7 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         // Get the word at the cursor position
-        const wordRange = document.getWordRangeAtPosition(position, /[A-Z][A-Za-z0-9_]*/);
+        const wordRange = document.getWordRangeAtPosition(position, COMPONENT_NAME_WORD);
         if (!wordRange) {
             console.log(`JQHTML: No word range found at position`);
             return undefined;
@@ -57,7 +60,7 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
 
         // Check if this looks like a component reference
         if (!JqhtmlComponentIndex.isComponentReference(word)) {
-            console.log(`JQHTML: "${word}" is not a component reference (doesn't start with capital)`);
+            console.log(`JQHTML: "${word}" is not a component reference (not _?Capital...)`);
             return undefined;
         }
 
@@ -258,7 +261,7 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         // Search backwards from current line to find <Define:ComponentName>
         for (let i = currentLine; i >= 0; i--) {
             const lineText = document.lineAt(i).text;
-            const defineMatch = lineText.match(/<Define:([A-Z][A-Za-z0-9_]*)/);
+            const defineMatch = lineText.match(DEFINE_NAME);
             if (defineMatch) {
                 return defineMatch[1];
             }
@@ -636,7 +639,7 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
             const lineText = document.lineAt(i).text;
 
             // Check if we found a <Define:ComponentName
-            if (lineText.match(/<Define:([A-Z][A-Za-z0-9_]*)/)) {
+            if (lineText.match(DEFINE_NAME)) {
                 defineTagStartLine = i;
                 console.log(`JQHTML: Found <Define: tag at line ${i + 1}`);
                 break;
@@ -658,7 +661,7 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
             }
 
             // Now check if this multi-line tag has extends attribute
-            const extendsMatch = tagContent.match(/\bextends\s*=\s*["']([A-Z][A-Za-z0-9_]*)["']/);
+            const extendsMatch = tagContent.match(new RegExp(`\\bextends\\s*=\\s*["'](${COMPONENT_NAME_SOURCE})["']`));
             if (extendsMatch) {
                 const parentComponentName = extendsMatch[1];
                 console.log(`JQHTML: Found extends="${parentComponentName}" in Define tag`);
@@ -679,7 +682,7 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
 
             // Find all component tags on this line (both opening and closing)
             // Component tags: <ComponentName> or </ComponentName>
-            const tagRegex = /<\/?([A-Z][A-Za-z0-9_]*)[^>]*>/g;
+            const tagRegex = new RegExp(`<\\/?(${COMPONENT_NAME_SOURCE})[^>]*>`, 'g');
             let match;
 
             // Collect all tags on this line
@@ -797,7 +800,7 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
         const afterCursor = line.substring(char);
 
         // Check if we're hovering over "tag" attribute name or its value
-        const tagAttrMatch = beforeCursor.match(/<(Define:[A-Z][A-Za-z0-9_]*|[A-Z][A-Za-z0-9_]*)[^>]*\btag\s*=\s*["']?(\w*)$/);
+        const tagAttrMatch = beforeCursor.match(new RegExp(`<(Define:${COMPONENT_NAME_SOURCE}|${COMPONENT_NAME_SOURCE})[^>]*\\btag\\s*=\\s*["']?(\\w*)$`));
         if (tagAttrMatch) {
             // We're in or near a tag attribute
             const markdown = new vscode.MarkdownString();
@@ -815,7 +818,7 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
 
         // Original component hover logic
         // Get the word at the cursor position
-        const wordRange = document.getWordRangeAtPosition(position, /[A-Z][A-Za-z0-9_]*/);
+        const wordRange = document.getWordRangeAtPosition(position, COMPONENT_NAME_WORD);
         if (!wordRange) {
             return undefined;
         }

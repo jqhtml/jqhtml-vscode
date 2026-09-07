@@ -5,6 +5,7 @@ import { JqhtmlDefinitionProvider, JqhtmlHoverProvider } from './definitionProvi
 import { BladeComponentSemanticTokensProvider } from './blade_component_provider';
 import { blade_spacer } from './blade_spacer';
 import { init_blade_language_config } from './blade_language_config';
+import { COMPONENT_NAME_SOURCE, is_component_name } from './component_name';
 
 /**
  * JQHTML Language Extension
@@ -117,7 +118,7 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
 
             // Match opening tags: <ComponentName>, <Define:Name>, <Slot:Name>, or regular HTML tags
             // Look for self-closing indicators /> or existing closing tags
-            const openingTagMatch = lineText.match(/<(\/?)(Define:|Slot:)?([A-Z][A-Za-z0-9_]*|\w+)(?:\s+[^>]*)?>$/);
+            const openingTagMatch = lineText.match(new RegExp(`<(\\/?)(Define:|Slot:)?(${COMPONENT_NAME_SOURCE}|\\w+)(?:\\s+[^>]*)?>$`));
 
             if (openingTagMatch && !openingTagMatch[1]) { // Not a closing tag (no /)
                 const tagPrefix = openingTagMatch[2] || ''; // 'Define:' or 'Slot:' or ''
@@ -141,8 +142,8 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
                 }
 
                 // Check if we should auto-close this tag
-                // Component tags (start with capital), Define: tags, and slot tags
-                const shouldAutoClose = tagName[0] === tagName[0].toUpperCase() ||
+                // Component tags (see component_name.ts), Define: tags, and slot tags
+                const shouldAutoClose = is_component_name(tagName) ||
                                        tagPrefix === 'Define:' ||
                                        isSlot ||
                                        isHtmlTag(tagName);

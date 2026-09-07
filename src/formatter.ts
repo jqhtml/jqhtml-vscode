@@ -93,6 +93,13 @@ function is_name_start(ch: string): boolean {
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
 
+// A tag may also begin with a single underscore followed by a letter - the
+// reserved framework component prefix (<_Root_Layout>). "<_ " and "<__" are text.
+function is_tag_start_at(text: string, pos: number): boolean {
+    const ch = text[pos] || '';
+    return is_name_start(ch) || (ch === '_' && is_name_start(text[pos + 1] || ''));
+}
+
 function is_name_char(ch: string): boolean {
     return is_name_start(ch) || (ch >= '0' && ch <= '9') || ch === '_' || ch === '-' || ch === ':' || ch === '.';
 }
@@ -638,7 +645,7 @@ function measure(sub: Substituted): LineMeasure[] {
         }
 
         // Closing tag.
-        if (text[pos + 1] === '/' && is_name_start(text[pos + 2] || '')) {
+        if (text[pos + 1] === '/' && is_tag_start_at(text, pos + 2)) {
             lower();
             const end = text.indexOf('>', pos);
             pos = end === -1 ? text.length : end + 1;
@@ -646,7 +653,7 @@ function measure(sub: Substituted): LineMeasure[] {
         }
 
         // Opening tag.
-        if (is_name_start(text[pos + 1] || '')) {
+        if (is_tag_start_at(text, pos + 1)) {
             let i = pos + 1;
             while (i < text.length && is_name_char(text[i])) i++;
             const name = text.substring(pos + 1, i);

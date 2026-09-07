@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { build_exclude_pattern, is_excluded, on_exclude_settings_changed } from './excludes';
+import { COMPONENT_NAME_SOURCE, is_component_name } from './component_name';
 
 /**
  * Component definition interface
@@ -116,7 +117,7 @@ export class JqhtmlComponentIndex {
             // DIAGNOSTIC HISTORY:
             // - Issue: Component "Contacts_Datagrid" not found in index
             // - This regex SHOULD match: <Define:Contacts_Datagrid...
-            // - Component name pattern: [A-Z][A-Za-z0-9_]* (starts uppercase, then alphanum+underscore)
+            // - Component name pattern: _?[A-Z][A-Za-z0-9_]* (optional single underscore, uppercase, then alphanum+underscore)
             // - Contacts_Datagrid matches this pattern
             //
             // POSSIBLE REASONS FOR MISSED COMPONENTS:
@@ -134,7 +135,7 @@ export class JqhtmlComponentIndex {
             // 2. Check console log when file is saved (should trigger onDidChange)
             // 3. Manually reload VS Code window to force reindex
             // 4. Check if file path contains "node_modules"
-            const definePattern = /<Define:([A-Z][A-Za-z0-9_]*)(?:[^\w]|>|$)/g;
+            const definePattern = new RegExp(`<Define:(${COMPONENT_NAME_SOURCE})(?:[^\\w]|>|$)`, 'g');
 
             for (let lineNum = 0; lineNum < lines.length; lineNum++) {
                 const line = lines[lineNum];
@@ -205,10 +206,11 @@ export class JqhtmlComponentIndex {
     }
 
     /**
-     * Check if a string is a component reference (starts with capital letter)
+     * Check if a string is a component reference (capital letter, optionally
+     * preceded by a single underscore - see component_name.ts)
      */
     public static isComponentReference(tagName: string): boolean {
-        return /^[A-Z]/.test(tagName);
+        return is_component_name(tagName);
     }
 
     /**

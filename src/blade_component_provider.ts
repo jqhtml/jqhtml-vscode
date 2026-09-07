@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { COMPONENT_NAME_SOURCE } from './component_name';
 
 /**
  * Provides semantic tokens for uppercase component tags in Blade files
@@ -22,9 +23,9 @@ export class BladeComponentSemanticTokensProvider implements vscode.DocumentSema
 
         const text = document.getText();
 
-        // Match opening tags that start with uppercase letter to find jqhtml components
+        // Match opening component tags (see component_name.ts) to find jqhtml components
         // Matches: <ComponentName ...>, captures the entire tag up to >
-        const component_tag_regex = /<([A-Z][a-zA-Z0-9_]*)([^>]*?)>/g;
+        const component_tag_regex = new RegExp(`<(${COMPONENT_NAME_SOURCE})([^>]*?)>`, 'g');
         let component_match;
 
         while ((component_match = component_tag_regex.exec(text)) !== null) {
@@ -53,9 +54,9 @@ export class BladeComponentSemanticTokensProvider implements vscode.DocumentSema
             }
         }
 
-        // Also match closing tags that start with uppercase letter
+        // Also match closing component tags
         // Matches: </ComponentName>
-        const closing_tag_regex = /<\/([A-Z][a-zA-Z0-9_]*)/g;
+        const closing_tag_regex = new RegExp(`<\\/(${COMPONENT_NAME_SOURCE})`, 'g');
         let closing_match;
 
         while ((closing_match = closing_tag_regex.exec(text)) !== null) {

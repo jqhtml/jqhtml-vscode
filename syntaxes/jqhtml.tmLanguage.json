@@ -271,12 +271,12 @@
       ]
     },
     "component-tag": {
-      "comment": "Component invocations - tags starting with capital letter",
+      "comment": "Component invocations - a capital letter optionally preceded by a single underscore (_Root_Layout is the reserved framework prefix)",
       "patterns": [
         {
           "comment": "Opening component tag <ComponentName> with attributes",
           "name": "meta.tag.component.jqhtml",
-          "begin": "(<)([A-Z]\\w*)(?=\\s|>)",
+          "begin": "(<)(_?[A-Z]\\w*)(?=\\s|>)",
           "beginCaptures": {
             "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
             "2": { "name": "entity.name.class.component.jqhtml" }
@@ -293,7 +293,7 @@
         {
           "comment": "Closing component tag </ComponentName>",
           "name": "meta.tag.component.close.jqhtml",
-          "match": "(</)([A-Z]\\w*)(>)",
+          "match": "(</)(_?[A-Z]\\w*)(>)",
           "captures": {
             "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
             "2": { "name": "entity.name.class.component.jqhtml" },
@@ -339,7 +339,7 @@
         {
           "comment": "extends attribute with component name value - highlighted in orange and teal",
           "name": "meta.attribute.extends.jqhtml",
-          "match": "(extends)(=)(\"([A-Z]\\w*)\"|'([A-Z]\\w*)')",
+          "match": "(extends)(=)(\"(_?[A-Z]\\w*)\"|'(_?[A-Z]\\w*)')",
           "captures": {
             "1": { "name": "keyword.control.extends.jqhtml" },
             "2": { "name": "punctuation.separator.key-value.html" },

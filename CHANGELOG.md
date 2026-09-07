@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.3.63 (2026-09-07)
+
+### Features
+
+* **naming:** component names may begin with a single underscore (`<_Root_Layout>`), matching
+  @jqhtml/parser and @jqhtml/core 2.3.62. `src/component_name.ts` holds the rule
+  (`_?[A-Z][A-Za-z0-9_]*`) for the TypeScript providers; the TextMate grammars carry it
+  literally. Applied to: syntax highlighting of opening/closing component tags and
+  `extends=""` values (both the jqhtml and Blade grammars), auto-close on `>`, the component
+  index (`<Define:_Foo>`), Go to Definition and hover word ranges, `extends` resolution, the
+  Blade component provider, and the formatter, which now recognises `<_Foo>` / `</_Foo>` as
+  tags and indents them. `<_foo>` is an HTML element; `<_ ` and `<__Foo>` remain text.
+  Fixture `tools/fixtures/underscore_components.jqhtml`.
+
+
 ## 2.3.60 (2026-09-02)
 
 ### Bug Fixes

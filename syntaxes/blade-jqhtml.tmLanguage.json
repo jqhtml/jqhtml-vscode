@@ -6,7 +6,7 @@
         {
             "comment": "JQHTML Component Tags",
             "name": "meta.tag.jqhtml.component",
-            "match": "(</?)(([A-Z][A-Za-z0-9_]*))(?=[\\s/>])",
+            "match": "(</?)((_?[A-Z][A-Za-z0-9_]*))(?=[\\s/>])",
             "captures": {
                 "1": {
                     "name": "punctuation.definition.tag.html"

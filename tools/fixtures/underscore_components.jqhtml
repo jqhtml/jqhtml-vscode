@@ -1,0 +1,12 @@
+<Define:_Root_Layout class="layout">
+<_Sidebar_Nav $items=this.data.items />
+<_Main_Region>
+<Panel $title="inner">
+<_Widget />
+</Panel>
+<%= content() %>
+</_Main_Region>
+<_foo>html element, still a tag</_foo>
+a <_ b stays text
+<__Not_A_Tag>text</__Not_A_Tag>
+</Define:_Root_Layout>

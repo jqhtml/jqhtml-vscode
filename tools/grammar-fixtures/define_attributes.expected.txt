@@ -1,0 +1,22 @@
+"<"	meta.tag.component-definition.jqhtml punctuation.definition.tag.begin.jqhtml
+"Define"	meta.tag.component-definition.jqhtml keyword.control.define.jqhtml
+":"	meta.tag.component-definition.jqhtml punctuation.separator.key-value.jqhtml
+"_Card"	meta.tag.component-definition.jqhtml entity.name.class.component.jqhtml
+" "	meta.tag.component-definition.jqhtml
+"tag"	meta.tag.component-definition.jqhtml meta.attribute.tag.jqhtml keyword.control.tag.jqhtml
+"="	meta.tag.component-definition.jqhtml meta.attribute.tag.jqhtml punctuation.separator.key-value.html
+"\""	meta.tag.component-definition.jqhtml meta.attribute.tag.jqhtml string.quoted.double.html punctuation.definition.string.begin.html
+"span"	meta.tag.component-definition.jqhtml meta.attribute.tag.jqhtml string.quoted.double.html
+"\""	meta.tag.component-definition.jqhtml meta.attribute.tag.jqhtml string.quoted.double.html punctuation.definition.string.end.html
+" "	meta.tag.component-definition.jqhtml
+"extends"	meta.tag.component-definition.jqhtml meta.attribute.extends.jqhtml keyword.control.extends.jqhtml
+"="	meta.tag.component-definition.jqhtml meta.attribute.extends.jqhtml punctuation.separator.key-value.html
+"\""	meta.tag.component-definition.jqhtml meta.attribute.extends.jqhtml string.quoted.html
+"Base"	meta.tag.component-definition.jqhtml meta.attribute.extends.jqhtml string.quoted.html entity.name.class.component.jqhtml
+"\""	meta.tag.component-definition.jqhtml meta.attribute.extends.jqhtml string.quoted.html
+">"	meta.tag.component-definition.jqhtml punctuation.definition.tag.end.jqhtml
+"</"	meta.tag.component-definition.close.jqhtml punctuation.definition.tag.begin.jqhtml
+"Define"	meta.tag.component-definition.close.jqhtml keyword.control.define.jqhtml
+":"	meta.tag.component-definition.close.jqhtml punctuation.separator.key-value.jqhtml
+"_Card"	meta.tag.component-definition.close.jqhtml entity.name.class.component.jqhtml
+">"	meta.tag.component-definition.close.jqhtml punctuation.definition.tag.end.jqhtml

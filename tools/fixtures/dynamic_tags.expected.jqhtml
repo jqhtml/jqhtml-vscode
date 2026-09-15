@@ -1,0 +1,13 @@
+<Define:Field_Row>
+
+    <label><%= this.args.label %></label>
+    <{this.args.editor} $field=this.args.name $sid="editor" />
+    <{ this.args.n > 1 ? 'Text_Input' : 'Wysiwyg_Input' }>
+        <b>inner</b>
+        <{this.args.inner}>
+            nested
+        </{this.args.inner}>
+    </{ this.args.n > 1 ? 'Text_Input' : 'Wysiwyg_Input' }>
+    <p>after</p>
+
+</Define:Field_Row>

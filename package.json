@@ -2,7 +2,7 @@
   "name": "@jqhtml/vscode-extension",
   "displayName": "JQHTML",
   "description": "Syntax highlighting and language support for JQHTML template files",
-  "version": "2.3.65",
+  "version": "2.3.68",
   "publisher": "jqhtml",
   "license": "MIT",
   "publishConfig": {
@@ -13,7 +13,10 @@
     "vscode:prepublish": "echo Skipping prepublish",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "node tools/test-formatter.js",
+    "test": "node tools/test-all.js",
+    "test:unit": "node tools/test-formatter.js && node tools/test-providers.js",
+    "test:grammar": "node tools/test-grammar.js",
+    "test:host": "node tools/test-extension-host/run.js",
     "build": "./build.sh",
     "compile:release": "tsc -p ./tsconfig.release.json",
     "build:dev": "./build.sh --dev",
@@ -29,7 +32,8 @@
     "README.md",
     "LLM_REFERENCE.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "engines": {
     "vscode": "^1.74.0"
@@ -113,9 +117,7 @@
           "other": true,
           "comments": false,
           "strings": true
-        },
-        "editor.bracketPairColorization.enabled": false,
-        "editor.guides.bracketPairs": false
+        }
       },
       "editor.semanticTokenColorCustomizations": {
         "rules": {
@@ -151,6 +153,16 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically add spaces inside Blade tags when typing ({{ -> {{ | }})"
+        },
+        "jqhtml.bladeIndentationRules": {
+          "type": "boolean",
+          "default": true,
+          "description": "Apply JQHTML's indentation rules and word pattern to Blade files. This overrides the Blade extension's indentation rules for every Blade file in the window; set false if you use another Blade extension's rules."
+        },
+        "jqhtml.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Write verbose diagnostics to the JQHTML output channel"
         }
       }
     }
@@ -158,9 +170,12 @@
   "devDependencies": {
     "@types/node": "^16.18.126",
     "@types/vscode": "^1.74.0",
-    "typescript": "^5.8.3"
+    "@vscode/test-electron": "^3.1.0",
+    "typescript": "^5.8.3",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   },
-  "author": "",
+  "author": "jqhtml",
   "homepage": "https://jqhtml.org/",
   "dependencies": null
 }

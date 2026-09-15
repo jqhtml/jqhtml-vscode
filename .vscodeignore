@@ -1,0 +1,26 @@
+# What NOT to ship in the .vsix.
+#
+# package.json's "files" list governs the npm tarball; this governs `vsce
+# package`. Keep the two in step - anything added here that is still in "files"
+# ships to npm but not to the Marketplace, and vice versa.
+#
+# The extension has no runtime dependencies; everything in node_modules is test
+# tooling.
+
+src/**
+tools/**
+test-files/**
+.vscode-test/**
+build.sh
+tsconfig*.json
+README.backlog
+CLAUDE.dist.md
+node_modules/**
+*.vsix
+out/**/*.map
+
+# Repo furniture that is not part of the extension.
+.eslintrc.json
+.version-state.json
+.beads/**
+.claude/**

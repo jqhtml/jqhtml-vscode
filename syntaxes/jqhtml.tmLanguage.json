@@ -16,9 +16,9 @@
       "comment": "Matches <Define:ComponentName> tags with any attributes, including special ones like as='span', class='foo', $prop='value'",
       "patterns": [
         {
-          "comment": "Closing Define tag - standalone pattern for proper highlighting",
+          "comment": "Closing Define tag - matched on its own; the Define body is not a scoped block, the opening tag and this closing tag are highlighted independently. Name rule mirrors src/component_name.ts.",
           "name": "meta.tag.component-definition.close.jqhtml",
-          "match": "(</)(Define)(:)(\\w+)(>)",
+          "match": "(</)(Define)(:)(_?[A-Z][A-Za-z0-9_]*)(>)",
           "captures": {
             "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
             "2": { "name": "keyword.control.define.jqhtml" },
@@ -28,9 +28,9 @@
           }
         },
         {
-          "comment": "Opening Define tag with attributes",
+          "comment": "Opening Define tag with attributes - name rule mirrors src/component_name.ts",
           "name": "meta.tag.component-definition.jqhtml",
-          "begin": "(<)(Define)(:)(\\w+)",
+          "begin": "(<)(Define)(:)(_?[A-Z][A-Za-z0-9_]*)",
           "beginCaptures": {
             "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
             "2": { "name": "keyword.control.define.jqhtml" },
@@ -44,34 +44,6 @@
           "patterns": [
             { "include": "#define-special-attributes" },
             { "include": "#tag-attributes" }
-          ]
-        },
-        {
-          "comment": "Component definition body - everything between <Define:Name> and </Define:Name>",
-          "name": "meta.component.body.jqhtml",
-          "begin": "(<)(Define)(:)(\\w+)([^>]*)(>)",
-          "beginCaptures": {
-            "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
-            "2": { "name": "keyword.control.define.jqhtml" },
-            "3": { "name": "punctuation.separator.key-value.jqhtml" },
-            "4": { "name": "entity.name.class.component.jqhtml" },
-            "5": {
-              "patterns": [
-                { "include": "#tag-attributes" }
-              ]
-            },
-            "6": { "name": "punctuation.definition.tag.end.jqhtml" }
-          },
-          "end": "(</)(Define)(:)(\\4)(>)",
-          "endCaptures": {
-            "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
-            "2": { "name": "keyword.control.define.jqhtml" },
-            "3": { "name": "punctuation.separator.key-value.jqhtml" },
-            "4": { "name": "entity.name.class.component.jqhtml" },
-            "5": { "name": "punctuation.definition.tag.end.jqhtml" }
-          },
-          "patterns": [
-            { "include": "$self" }
           ]
         }
       ]
@@ -178,8 +150,19 @@
           ]
         },
         {
-          "comment": "Comments",
-          "match": "//.*$",
+          "comment": "Single-line block comment - must not run past the %> that ends the embedded block",
+          "match": "/\\*(?:(?!\\*/|%>).)*\\*/",
+          "name": "comment.block.js"
+        },
+        {
+          "comment": "Multi-line block comment - only begins when the line has no closing */",
+          "name": "comment.block.js",
+          "begin": "/\\*(?!.*\\*/)",
+          "end": "\\*/"
+        },
+        {
+          "comment": "Line comment - stops before %> so it cannot swallow the end of the embedded block",
+          "match": "//(?:(?!%>).)*",
           "name": "comment.line.double-slash.js"
         },
         {
@@ -232,6 +215,7 @@
     "html-tag": {
       "patterns": [
         { "include": "#slot-tag" },
+        { "include": "#dynamic-component-tag" },
         { "include": "#component-tag" },
         { "include": "#standard-tag" }
       ]
@@ -270,13 +254,64 @@
         }
       ]
     },
+    "dynamic-component-tag": {
+      "comment": "Dynamic component tags <{expression} ...> and </{expression}> - the braces are the tag identity, the expression is JavaScript",
+      "patterns": [
+        {
+          "comment": "Opening dynamic tag <{expression} with attributes",
+          "name": "meta.tag.component.dynamic.jqhtml",
+          "begin": "(<)(\\{)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
+            "2": { "name": "entity.name.class.component.jqhtml" }
+          },
+          "end": "(/?>)",
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.tag.end.jqhtml" }
+          },
+          "patterns": [
+            {
+              "comment": "The name expression, up to the closing brace",
+              "name": "meta.embedded.expression.dynamic-tag.jqhtml",
+              "begin": "\\G",
+              "end": "(\\})",
+              "endCaptures": {
+                "1": { "name": "entity.name.class.component.jqhtml" }
+              },
+              "patterns": [
+                { "include": "#js-fragment" }
+              ]
+            },
+            { "include": "#define-special-attributes" },
+            { "include": "#tag-attributes" }
+          ]
+        },
+        {
+          "comment": "Closing dynamic tag </{expression}>",
+          "name": "meta.tag.component.dynamic.close.jqhtml",
+          "begin": "(</)(\\{)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
+            "2": { "name": "entity.name.class.component.jqhtml" }
+          },
+          "end": "(\\})\\s*(>)",
+          "endCaptures": {
+            "1": { "name": "entity.name.class.component.jqhtml" },
+            "2": { "name": "punctuation.definition.tag.end.jqhtml" }
+          },
+          "patterns": [
+            { "include": "#js-fragment" }
+          ]
+        }
+      ]
+    },
     "component-tag": {
       "comment": "Component invocations - a capital letter optionally preceded by a single underscore (_Root_Layout is the reserved framework prefix)",
       "patterns": [
         {
-          "comment": "Opening component tag <ComponentName> with attributes",
+          "comment": "Opening component tag <ComponentName> with attributes - `_?[A-Z]\\w*` is equivalent for ASCII to the canonical rule `_?[A-Z][A-Za-z0-9_]*` in src/component_name.ts",
           "name": "meta.tag.component.jqhtml",
-          "begin": "(<)(_?[A-Z]\\w*)(?=\\s|>)",
+          "begin": "(<)(_?[A-Z]\\w*)(?=[\\s/>])",
           "beginCaptures": {
             "1": { "name": "punctuation.definition.tag.begin.jqhtml" },
             "2": { "name": "entity.name.class.component.jqhtml" }
@@ -322,9 +357,9 @@
           ]
         },
         {
-          "comment": "Closing HTML tag </div>, </span>, etc.",
+          "comment": "Closing HTML tag </div>, </span>, </my-el>, etc. - mirrors the opening rule so hyphenated custom elements match",
           "name": "meta.tag.close.html",
-          "match": "(</)(\\w+)(>)",
+          "match": "(</)([a-z][a-z0-9\\-]*)(>)",
           "captures": {
             "1": { "name": "punctuation.definition.tag.begin.html" },
             "2": { "name": "entity.name.tag.html" },

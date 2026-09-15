@@ -47,23 +47,83 @@ npm run build     # or: ./build.sh
 
 TypeScript errors about a missing 'vscode' module during standalone builds are expected and can be ignored.
 
-## Testing the Formatter
+## Testing
 
-The formatter is pure (`format_jqhtml(text, options)` in `src/formatter.ts`) and is
-exercised outside VS Code by loading the compiled `out/formatter.js` with a stubbed
-`vscode` module - the same code the extension ships, not a copy.
+`npm test` runs `tools/test-all.js`: three tiers, cheapest first, one summary,
+non-zero exit if any tier fails. Compile first (`./build.sh --dev`) - every tier
+tests the compiled `out/`, not `src/`.
 
 ```bash
-npm run compile
-npm test                                   # fixture suite: tools/fixtures/*.jqhtml vs *.expected.jqhtml
-node tools/test-formatter.js --update      # rewrite expected files - review the diff, they are the spec
+npm test               # all three tiers
+npm run test:unit      # tier 1 only
+npm run test:grammar   # tier 2 only
+npm run test:host      # tier 3 only
+JQHTML_FAST=1 npm test # tiers 1 and 2; tier 3 prints SKIPPED
+```
+
+The root `./run-all-suites.sh` runs this as the "vscode: extension" suite and
+exports `JQHTML_FAST=1` under `--fast`, so tier 3 runs in the full suite only.
+
+### Tier 1 - unit tests with a stubbed `vscode` (sub-second)
+
+`tools/vscode-stub.js` is a headless stand-in for the `vscode` module backed by
+an in-memory workspace, and `tools/load-formatter.js` / `load_with_stub()` load
+the compiled `out/*.js` through it. The extension ships exactly this code; the
+tests do not carry a copy of it.
+
+- `tools/test-formatter.js` - the formatter against `tools/fixtures/*.jqhtml`.
+  Each fixture is checked for exact expected output, idempotence
+  (`format(format(x)) === format(x)`), no leaked placeholders, and - when
+  `@jqhtml/parser` is reachable - that the output still compiles.
+  `tools/fixtures/errors/` holds documents the formatter must refuse, with the
+  expected message. `--update` rewrites the expected files; review the diff,
+  they are the spec. Add a fixture for every formatter bug fixed.
+- `tools/test-providers.js` - `component_name`, `componentIndex`,
+  `definitionProvider`, the hover provider, `blade_component_provider` and
+  `blade_spacer`. The stub records what the providers asked VS Code for, so a
+  test can assert on what was *not* called (for example, that a `this.method`
+  handler never queries Intelephense).
+
+```bash
 node tools/format-cli.js path/to/file.jqhtml   # format one file to file.jqhtml.formatted (never in place)
 ```
 
-Every fixture is checked for exact expected output, idempotence (`format(format(x)) === format(x)`),
-no leaked placeholders, and - when `@jqhtml/parser` is reachable - that the output still compiles.
-`tools/fixtures/errors/` holds documents the formatter must refuse, with the expected message.
-Add a fixture for every formatter bug fixed.
+### Tier 2 - TextMate tokenisation snapshots (~2s)
+
+`tools/test-grammar.js` runs the real `vscode-textmate` + `vscode-oniguruma`
+engine - the one VS Code itself uses - over `syntaxes/*.tmLanguage.json`, and
+snapshots every token of every `tools/grammar-fixtures/*.jqhtml` as
+`"text"<TAB>scopes` in a sibling `.expected.txt`. A fixture with a
+`<name>.scope.txt` is tokenised with that grammar instead of `source.jqhtml`
+(that is how the Blade injection grammar is exercised standalone).
+
+`source.js` is resolved from `tools/grammars/JavaScript.tmLanguage.json`, VS
+Code's own grammar, vendored for tests only - see `tools/grammars/README.md`.
+
+`--update` rewrites the snapshots. Some expected files are written by hand to
+the behaviour the grammar *should* have; never `--update` one of those into
+agreement with a bug.
+
+### Tier 3 - a real VS Code extension host (~10s, plus a one-off 1 GB download)
+
+`tools/test-extension-host/run.js` launches a real VS Code via
+`@vscode/test-electron` against the fixture workspace in
+`tools/test-extension-host/workspace/`, and `suite/index.js` (plain JS exporting
+`run()`, no mocha) asserts that the extension activates and that VS Code's own
+command layer reaches the providers: `executeDefinitionProvider`,
+`executeHoverProvider`, `executeFormatDocumentProvider` (cross-checked against
+`tools/format-cli.js`), and the auto-closing-tag handler against real edits.
+
+Only this tier can see activation, command registration and the interaction
+between `language-configuration.json`'s auto-closing pairs and the extension's
+own handler.
+
+- VS Code is pinned to a version constant in `run.js` and cached in
+  `~/.cache/jqhtml-vscode-test/` (override with `JQHTML_VSCODE_CACHE`).
+- It runs under `xvfb-run` automatically when `DISPLAY` is unset.
+- `JQHTML_VSCODE_HOST_OPTIONAL=1` downgrades "could not download or launch VS
+  Code" from a failure to a SKIPPED line. For offline CI only - set it locally
+  and a broken tier 3 looks like a passing one.
 
 ## Packaging & Installing Locally
 

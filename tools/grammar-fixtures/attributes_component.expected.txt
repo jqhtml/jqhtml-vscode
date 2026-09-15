@@ -1,0 +1,39 @@
+"<"	meta.tag.component.jqhtml punctuation.definition.tag.begin.jqhtml
+"Bar"	meta.tag.component.jqhtml entity.name.class.component.jqhtml
+" "	meta.tag.component.jqhtml
+"$"	meta.tag.component.jqhtml meta.attribute.special.unquoted-js.jqhtml keyword.control.slot.jqhtml
+"arg"	meta.tag.component.jqhtml meta.attribute.special.unquoted-js.jqhtml entity.other.attribute-name.special.jqhtml
+"="	meta.tag.component.jqhtml meta.attribute.special.unquoted-js.jqhtml punctuation.separator.key-value.html
+"value"	meta.tag.component.jqhtml meta.attribute.special.unquoted-js.jqhtml entity.name.class.jqhtml
+" "	meta.tag.component.jqhtml
+"$"	meta.tag.component.jqhtml meta.attribute.special.jqhtml keyword.control.slot.jqhtml
+"arg2"	meta.tag.component.jqhtml meta.attribute.special.jqhtml entity.other.attribute-name.special.jqhtml
+"="	meta.tag.component.jqhtml meta.attribute.special.jqhtml punctuation.separator.key-value.html
+"\""	meta.tag.component.jqhtml meta.attribute.special.jqhtml string.quoted.double.html punctuation.definition.string.begin.html
+"v"	meta.tag.component.jqhtml meta.attribute.special.jqhtml string.quoted.double.html
+"\""	meta.tag.component.jqhtml meta.attribute.special.jqhtml string.quoted.double.html punctuation.definition.string.end.html
+" "	meta.tag.component.jqhtml
+":"	meta.tag.component.jqhtml meta.attribute.binding.jqhtml punctuation.definition.attribute.binding.jqhtml
+"bind"	meta.tag.component.jqhtml meta.attribute.binding.jqhtml entity.other.attribute-name.binding.jqhtml
+"="	meta.tag.component.jqhtml meta.attribute.binding.jqhtml punctuation.separator.key-value.html
+"\""	meta.tag.component.jqhtml meta.attribute.binding.jqhtml string.quoted.double.html punctuation.definition.string.begin.html
+"x"	meta.tag.component.jqhtml meta.attribute.binding.jqhtml string.quoted.double.html
+"\""	meta.tag.component.jqhtml meta.attribute.binding.jqhtml string.quoted.double.html punctuation.definition.string.end.html
+" "	meta.tag.component.jqhtml
+"@"	meta.tag.component.jqhtml meta.attribute.event.quoted.jqhtml punctuation.definition.attribute.event.jqhtml
+"click"	meta.tag.component.jqhtml meta.attribute.event.quoted.jqhtml entity.other.attribute-name.event.jqhtml
+"="	meta.tag.component.jqhtml meta.attribute.event.quoted.jqhtml punctuation.separator.key-value.html
+"\"h\""	meta.tag.component.jqhtml meta.attribute.event.quoted.jqhtml invalid.illegal.quoted-event-handler.jqhtml
+" "	meta.tag.component.jqhtml
+"class"	meta.tag.component.jqhtml meta.attribute.html entity.other.attribute-name.html
+"="	meta.tag.component.jqhtml meta.attribute.html punctuation.separator.key-value.html
+"\""	meta.tag.component.jqhtml meta.attribute.html string.quoted.double.html punctuation.definition.string.begin.html
+"x"	meta.tag.component.jqhtml meta.attribute.html string.quoted.double.html
+"\""	meta.tag.component.jqhtml meta.attribute.html string.quoted.double.html punctuation.definition.string.end.html
+" "	meta.tag.component.jqhtml
+"$"	meta.tag.component.jqhtml meta.attribute.special.redrawable.jqhtml keyword.control.slot.jqhtml
+"redrawable"	meta.tag.component.jqhtml meta.attribute.special.redrawable.jqhtml keyword.control.tag.jqhtml
+">"	meta.tag.component.jqhtml punctuation.definition.tag.end.jqhtml
+"</"	meta.tag.component.close.jqhtml punctuation.definition.tag.begin.jqhtml
+"Bar"	meta.tag.component.close.jqhtml entity.name.class.component.jqhtml
+">"	meta.tag.component.close.jqhtml punctuation.definition.tag.end.jqhtml

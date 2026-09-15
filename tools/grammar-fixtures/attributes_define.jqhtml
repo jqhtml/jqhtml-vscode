@@ -1,0 +1,2 @@
+<Define:Kid extends="Foo" tag="span">
+</Define:Kid>

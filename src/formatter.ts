@@ -97,7 +97,35 @@ function is_name_start(ch: string): boolean {
 // reserved framework component prefix (<_Root_Layout>). "<_ " and "<__" are text.
 function is_tag_start_at(text: string, pos: number): boolean {
     const ch = text[pos] || '';
-    return is_name_start(ch) || (ch === '_' && is_name_start(text[pos + 1] || ''));
+    return is_name_start(ch) || (ch === '_' && is_name_start(text[pos + 1] || '')) || ch === '{';
+}
+
+/**
+ * End of a tag name starting at `pos`. A literal name runs over name
+ * characters; a dynamic name <{expression}> runs to the brace that closes the
+ * expression, honouring nested braces and string literals, so a '>' inside
+ * the expression is not the end of the tag.
+ */
+function tag_name_end(text: string, pos: number): number {
+    if (text[pos] !== '{') {
+        let i = pos;
+        while (i < text.length && is_name_char(text[i])) i++;
+        return i;
+    }
+    let depth = 0;
+    let quote: string | null = null;
+    for (let i = pos; i < text.length; i++) {
+        const c = text[i];
+        if (quote !== null) {
+            if (c === '\\') i++;
+            else if (c === quote) quote = null;
+            continue;
+        }
+        if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+        if (c === '{') depth++;
+        else if (c === '}') { depth--; if (depth === 0) return i + 1; }
+    }
+    return text.length;
 }
 
 function is_name_char(ch: string): boolean {
@@ -647,15 +675,14 @@ function measure(sub: Substituted): LineMeasure[] {
         // Closing tag.
         if (text[pos + 1] === '/' && is_tag_start_at(text, pos + 2)) {
             lower();
-            const end = text.indexOf('>', pos);
+            const end = text.indexOf('>', tag_name_end(text, pos + 2));
             pos = end === -1 ? text.length : end + 1;
             continue;
         }
 
         // Opening tag.
         if (is_tag_start_at(text, pos + 1)) {
-            let i = pos + 1;
-            while (i < text.length && is_name_char(text[i])) i++;
+            let i = tag_name_end(text, pos + 1);
             const name = text.substring(pos + 1, i);
             const is_void = VOID_ELEMENTS.has(name) && name === name.toLowerCase();
 
@@ -730,29 +757,57 @@ function is_blank(line: string): boolean {
 }
 
 /**
+ * One emitted line, before and after the protected regions were put back.
+ * `key` is the placeholder (substituted) text, trimmed - the only thing the
+ * Define spacing is allowed to look at, because a protected region is still a
+ * single placeholder character there. `text` is what is actually written out,
+ * and may already span several lines once a multi-line region was restored
+ * into it.
+ */
+interface EmittedLine {
+    key: string;
+    text: string;
+}
+
+/** True when the placeholder line opens a <Define:> block. */
+function opens_define(key: string): boolean {
+    return key.startsWith('<Define:') && key.endsWith('>') &&
+        !key.endsWith('/>') && key.indexOf('</') === -1;
+}
+
+/**
  * Blank line after an opening <Define:> and before its closing tag, so every
  * component body reads as a block. Existing blank lines are respected.
+ *
+ * The decision is made on the PLACEHOLDER text of each line: a `<Define:>`
+ * written inside a comment, a code block or a <pre> body is invisible here
+ * because the whole region is one placeholder, so a protected region is never
+ * inspected and never edited. The blank lines are inserted around the restored
+ * text, which may itself be several lines long.
  */
-function apply_define_spacing(lines: string[]): string[] {
+function apply_define_spacing(lines: EmittedLine[]): string[] {
     const out: string[] = [];
+    let prev_key = '';
     for (let i = 0; i < lines.length; i++) {
-        const trimmed = lines[i].trim();
-        const next = i + 1 < lines.length ? lines[i + 1].trim() : '';
-        const prev_out = out.length ? out[out.length - 1].trim() : '';
+        const key = lines[i].key;
+        const next = i + 1 < lines.length ? lines[i + 1].key : '';
 
-        if (trimmed.startsWith('</Define:')) {
-            if (out.length && prev_out.length > 0 && !prev_out.startsWith('<Define:')) {
+        if (key.startsWith('</Define:')) {
+            if (out.length && prev_key.length > 0 && !prev_key.startsWith('<Define:')) {
                 out.push('');
             }
-            out.push(lines[i]);
+            out.push(lines[i].text);
+            prev_key = key;
             continue;
         }
 
-        out.push(lines[i]);
+        out.push(lines[i].text);
+        prev_key = key;
 
-        if (trimmed.startsWith('<Define:') && trimmed.endsWith('>') && trimmed.indexOf('</') === -1) {
+        if (opens_define(key)) {
             if (next.length > 0 && !next.startsWith('</Define:')) {
                 out.push('');
+                prev_key = '';
             }
         }
     }
@@ -778,7 +833,7 @@ export function format_jqhtml(text: string, options: JqhtmlFormatOptions): strin
     const sub = substitute(lf, regions);
     const measures = measure(sub);
 
-    const out: string[] = [];
+    const out: EmittedLine[] = [];
     let level = 0;
     let continuation_base = 0;
 
@@ -801,16 +856,21 @@ export function format_jqhtml(text: string, options: JqhtmlFormatOptions): strin
         level = (m.attr_continuation ? continuation_base : level) + m.net_depth;
 
         if (m.text.length === 0) {
-            out.push('');
+            out.push({ key: '', text: '' });
             continue;
         }
         const width = Math.max(0, indent) * options.tab_size;
-        out.push(restore_line(indent_string(width, options) + m.text, width, sub, options));
+        out.push({
+            key: m.text,
+            text: restore_line(indent_string(width, options) + m.text, width, sub, options),
+        });
     }
 
-    // A multi-line region's interior lines are now inline; split them out
-    // again so the Define spacing and blank-line trimming see real lines.
-    let lines = apply_define_spacing(out.join('\n').split('\n'));
+    // Define spacing is decided on the placeholder text of each emitted line
+    // (see apply_define_spacing); only afterwards are the restored lines - a
+    // multi-line region's interior among them - split out so the blank-line
+    // trimming below sees real lines.
+    let lines = apply_define_spacing(out).join('\n').split('\n');
 
     // Drop leading and trailing blank lines; keep the final newline if the
     // document had one so files.insertFinalNewline is not fought over.

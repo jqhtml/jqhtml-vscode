@@ -1,0 +1,10 @@
+"<"	meta.tag.component-definition.jqhtml punctuation.definition.tag.begin.jqhtml
+"Define"	meta.tag.component-definition.jqhtml keyword.control.define.jqhtml
+":"	meta.tag.component-definition.jqhtml punctuation.separator.key-value.jqhtml
+"Foo"	meta.tag.component-definition.jqhtml entity.name.class.component.jqhtml
+">"	meta.tag.component-definition.jqhtml punctuation.definition.tag.end.jqhtml
+"</"	meta.tag.component-definition.close.jqhtml punctuation.definition.tag.begin.jqhtml
+"Define"	meta.tag.component-definition.close.jqhtml keyword.control.define.jqhtml
+":"	meta.tag.component-definition.close.jqhtml punctuation.separator.key-value.jqhtml
+"Foo"	meta.tag.component-definition.close.jqhtml entity.name.class.component.jqhtml
+">"	meta.tag.component-definition.close.jqhtml punctuation.definition.tag.end.jqhtml

@@ -1,0 +1,17 @@
+<Define:Outer>
+
+    <%--
+        <Define:Inner>
+          x
+        </Define:Inner>
+    --%>
+    <div>
+        <Define:Foo />
+    </div>
+    <!-- <Define:X> -->
+    <% /* <Define:Y> */ %>
+    <pre>
+</Define:Z>
+</pre>
+
+</Define:Outer>

@@ -1,0 +1,6 @@
+"<"	meta.tag.slot.jqhtml punctuation.definition.tag.begin.jqhtml
+"Slot"	meta.tag.slot.jqhtml keyword.control.slot.jqhtml
+":"	meta.tag.slot.jqhtml keyword.control.slot.jqhtml
+"x"	meta.tag.slot.jqhtml keyword.control.slot.jqhtml
+" "	meta.tag.slot.jqhtml
+"/>"	meta.tag.slot.jqhtml punctuation.definition.tag.end.jqhtml

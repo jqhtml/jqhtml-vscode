@@ -1,0 +1,25 @@
+"<"	meta.tag.html punctuation.definition.tag.begin.html
+"div"	meta.tag.html entity.name.tag.html
+" "	meta.tag.html
+"class"	meta.tag.html meta.attribute.html entity.other.attribute-name.html
+"="	meta.tag.html meta.attribute.html punctuation.separator.key-value.html
+"\""	meta.tag.html meta.attribute.html string.quoted.double.html punctuation.definition.string.begin.html
+"a"	meta.tag.html meta.attribute.html string.quoted.double.html
+"\""	meta.tag.html meta.attribute.html string.quoted.double.html punctuation.definition.string.end.html
+">"	meta.tag.html punctuation.definition.tag.end.html
+"<"	meta.tag.html punctuation.definition.tag.begin.html
+"span"	meta.tag.html entity.name.tag.html
+">"	meta.tag.html punctuation.definition.tag.end.html
+"t"	text.html.jqhtml
+"</"	meta.tag.close.html punctuation.definition.tag.begin.html
+"span"	meta.tag.close.html entity.name.tag.html
+">"	meta.tag.close.html punctuation.definition.tag.end.html
+"</"	meta.tag.close.html punctuation.definition.tag.begin.html
+"div"	meta.tag.close.html entity.name.tag.html
+">"	meta.tag.close.html punctuation.definition.tag.end.html
+"<"	meta.tag.html punctuation.definition.tag.begin.html
+"my-el"	meta.tag.html entity.name.tag.html
+">"	meta.tag.html punctuation.definition.tag.end.html
+"</"	meta.tag.close.html punctuation.definition.tag.begin.html
+"my-el"	meta.tag.close.html entity.name.tag.html
+">"	meta.tag.close.html punctuation.definition.tag.end.html

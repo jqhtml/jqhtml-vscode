@@ -6,6 +6,7 @@ import { BladeComponentSemanticTokensProvider } from './blade_component_provider
 import { blade_spacer } from './blade_spacer';
 import { init_blade_language_config } from './blade_language_config';
 import { COMPONENT_NAME_SOURCE, is_component_name } from './component_name';
+import { log } from './log';
 
 /**
  * JQHTML Language Extension
@@ -59,7 +60,8 @@ export interface JqhtmlExtensionAPI {
 }
 
 export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
-    console.log('JQHTML extension activated');
+    log.activate(context);
+    log.info('JQHTML extension activated');
 
     // Initialize component index
     const componentIndex = new JqhtmlComponentIndex();
@@ -108,67 +110,23 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
         }
 
         const change = event.contentChanges[0];
-        const text = change.text;
-
-        // Check if user typed '>'
-        if (text === '>') {
-            const position = change.range.start;
-            const line = event.document.lineAt(position.line);
-            const lineText = line.text.substring(0, position.character + 1);
-
-            // Match opening tags: <ComponentName>, <Define:Name>, <Slot:Name>, or regular HTML tags
-            // Look for self-closing indicators /> or existing closing tags
-            const openingTagMatch = lineText.match(new RegExp(`<(\\/?)(Define:|Slot:)?(${COMPONENT_NAME_SOURCE}|\\w+)(?:\\s+[^>]*)?>$`));
-
-            if (openingTagMatch && !openingTagMatch[1]) { // Not a closing tag (no /)
-                const tagPrefix = openingTagMatch[2] || ''; // 'Define:' or 'Slot:' or ''
-                const tagName = openingTagMatch[3];
-
-                // Check if it's self-closing or already has a closing tag
-                const beforeTag = lineText.substring(0, lineText.lastIndexOf('<'));
-                if (beforeTag.endsWith('/')) {
-                    return; // Self-closing tag
-                }
-
-                // Check if this is a slot tag (starts with Slot:)
-                const isSlot = tagPrefix === 'Slot:';
-
-                // For slots, check if it's self-closing syntax
-                if (isSlot && lineText.match(/<Slot:\w+\s*\/?>$/)) {
-                    // Don't auto-close self-closing slots
-                    if (lineText.endsWith('/>')) {
-                        return;
-                    }
-                }
-
-                // Check if we should auto-close this tag
-                // Component tags (see component_name.ts), Define: tags, and slot tags
-                const shouldAutoClose = is_component_name(tagName) ||
-                                       tagPrefix === 'Define:' ||
-                                       isSlot ||
-                                       isHtmlTag(tagName);
-
-                if (shouldAutoClose) {
-                    // Build the closing tag
-                    let closingTag = '';
-                    if (isSlot) {
-                        closingTag = `</Slot:${tagName}>`;
-                    } else {
-                        closingTag = `</${tagPrefix}${tagName}>`;
-                    }
-
-                    // Insert the closing tag
-                    activeEditor.edit((editBuilder: vscode.TextEditorEdit) => {
-                        const insertPosition = position.translate(0, 1);
-                        editBuilder.insert(insertPosition, closingTag);
-                    }, { undoStopBefore: false, undoStopAfter: false }).then(() => {
-                        // Move cursor between the tags
-                        const newPosition = position.translate(0, 1);
-                        activeEditor.selection = new vscode.Selection(newPosition, newPosition);
-                    });
-                }
-            }
+        if (change.text !== '>') {
+            return;
         }
+
+        const position = change.range.start;
+        const closingTag = closing_tag_for(event.document, position);
+        if (!closingTag) {
+            return;
+        }
+
+        activeEditor.edit((editBuilder: vscode.TextEditorEdit) => {
+            editBuilder.insert(position.translate(0, 1), closingTag);
+        }, { undoStopBefore: false, undoStopAfter: false }).then(() => {
+            // Leave the cursor between the tags
+            const newPosition = position.translate(0, 1);
+            activeEditor.selection = new vscode.Selection(newPosition, newPosition);
+        });
     });
 
     context.subscriptions.push(autoCloseDisposable);
@@ -176,7 +134,7 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
     // Register format on save if enabled
     const config = vscode.workspace.getConfiguration('editor');
     if (config.get('formatOnSave')) {
-        console.log('JQHTML: Format on save is enabled');
+        log.info('JQHTML: Format on save is enabled');
     }
 
     // =========================================================================
@@ -196,7 +154,7 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
                 new vscode.SemanticTokensLegend(['class', 'jqhtmlTagAttribute'])
             )
         );
-        console.log('JQHTML: Blade component highlighting registered');
+        log.info('JQHTML: Blade component highlighting registered');
 
         // Register Blade auto-spacing ({{ -> {{ | }})
         const getAutoSpacingEnabled = () => {
@@ -208,16 +166,16 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
                 blade_spacer(event, vscode.window.activeTextEditor, getAutoSpacingEnabled());
             })
         );
-        console.log('JQHTML: Blade auto-spacing registered');
+        log.info('JQHTML: Blade auto-spacing registered');
 
         // Initialize Blade language configuration (indentation rules)
         init_blade_language_config();
-        console.log('JQHTML: Blade language configuration initialized');
+        log.info('JQHTML: Blade language configuration initialized');
     } else {
-        console.log('JQHTML: Blade support disabled via settings');
+        log.info('JQHTML: Blade support disabled via settings');
     }
 
-    console.log('JQHTML: All features registered (formatter, auto-close, goto definition, hover)');
+    log.info('JQHTML: All features registered (formatter, auto-close, goto definition, hover)');
 
     // Return public API for other extensions
     return {
@@ -227,19 +185,113 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
     };
 }
 
-// Helper function to check if a tag is a standard HTML tag
-function isHtmlTag(tagName: string): boolean {
-    const htmlTags = [
-        'div', 'span', 'p', 'a', 'button', 'input', 'form', 'header', 'footer',
-        'section', 'article', 'nav', 'main', 'aside', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'tfoot',
-        'img', 'video', 'audio', 'canvas', 'svg', 'iframe', 'label', 'select', 'option',
-        'textarea', 'fieldset', 'legend', 'details', 'summary', 'dialog', 'template',
-        'blockquote', 'pre', 'code', 'em', 'strong', 'small', 'mark', 'del', 'ins', 'sub', 'sup'
-    ];
-    return htmlTags.includes(tagName.toLowerCase());
+/**
+ * HTML elements that must not be closed - everything else lowercase gets a
+ * closing tag, so hyphenated custom elements work without a maintained list.
+ */
+const VOID_ELEMENTS = new Set([
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr'
+]);
+
+const HTML_NAME_SOURCE = '[a-z][a-z0-9\\-]*';
+const SLOT_NAME_SOURCE = '[A-Za-z0-9_]+';
+
+const SLOT_TAG = new RegExp(`<Slot:(${SLOT_NAME_SOURCE})(?:\\s[^>]*)?>$`);
+const DEFINE_TAG = new RegExp(`<Define:(${COMPONENT_NAME_SOURCE})(?:\\s[^>]*)?>$`);
+const PLAIN_TAG = new RegExp(`<(${COMPONENT_NAME_SOURCE}|${HTML_NAME_SOURCE})(?:\\s[^>]*)?>$`);
+
+/** How far back the code/comment scan looks - a linear scan, but bounded. */
+const CONTEXT_SCAN_LINES = 200;
+
+/**
+ * Is `position` inside a <% ... %> block, a <%-- --%> or an <!-- --> comment?
+ *
+ * A single linear pass over the preceding text; the state at the end is the
+ * state at the cursor. The scan starts at most CONTEXT_SCAN_LINES back, which
+ * can mis-read a block opened further up - acceptable for a typing heuristic.
+ */
+function in_code_or_comment(document: vscode.TextDocument, position: vscode.Position): boolean {
+    const first_line = Math.max(0, position.line - CONTEXT_SCAN_LINES);
+    const text = document.getText(new vscode.Range(new vscode.Position(first_line, 0), position));
+
+    type State = 'text' | 'code' | 'template_comment' | 'html_comment';
+    let state: State = 'text';
+    let i = 0;
+
+    while (i < text.length) {
+        if (state === 'text') {
+            if (text.startsWith('<%--', i)) { state = 'template_comment'; i += 4; }
+            else if (text.startsWith('<%', i)) { state = 'code'; i += 2; }
+            else if (text.startsWith('<!--', i)) { state = 'html_comment'; i += 4; }
+            else { i++; }
+        } else if (state === 'code') {
+            if (text.startsWith('%>', i)) { state = 'text'; i += 2; } else { i++; }
+        } else if (state === 'template_comment') {
+            if (text.startsWith('--%>', i)) { state = 'text'; i += 4; } else { i++; }
+        } else {
+            if (text.startsWith('-->', i)) { state = 'text'; i += 3; } else { i++; }
+        }
+    }
+
+    return state !== 'text';
+}
+
+/**
+ * The closing tag to insert after a `>` just typed at `position`, or undefined
+ * when nothing should be inserted.
+ */
+export function closing_tag_for(
+    document: vscode.TextDocument,
+    position: vscode.Position
+): string | undefined {
+    const lineText = document.lineAt(position.line).text;
+    const before = lineText.substring(0, position.character);
+
+    // `<Foo />` - the character before the `>` closes the tag itself.
+    if (before.endsWith('/')) {
+        return undefined;
+    }
+
+    // A `>` inside <% %> / <%-- --%> / <!-- --> is not a tag at all.
+    if (in_code_or_comment(document, position)) {
+        return undefined;
+    }
+
+    const upToTag = before + '>';
+
+    let closing: string | undefined;
+
+    const slot = upToTag.match(SLOT_TAG);
+    const define = slot ? null : upToTag.match(DEFINE_TAG);
+    const plain = slot || define ? null : upToTag.match(PLAIN_TAG);
+
+    if (slot) {
+        closing = `</Slot:${slot[1]}>`;
+    } else if (define) {
+        closing = `</Define:${define[1]}>`;
+    } else if (plain) {
+        const name = plain[1];
+        if (is_component_name(name)) {
+            closing = `</${name}>`;
+        } else if (!VOID_ELEMENTS.has(name.toLowerCase())) {
+            closing = `</${name}>`;
+        }
+    }
+
+    if (!closing) {
+        return undefined;
+    }
+
+    // Already closed: `<Foo>` typed in front of an existing `</Foo>`.
+    const after = lineText.substring(position.character + 1);
+    if (after.replace(/^\s*/, '').startsWith(closing)) {
+        return undefined;
+    }
+
+    return closing;
 }
 
 export function deactivate() {
-    console.log('JQHTML extension deactivated');
+    log.info('JQHTML extension deactivated');
 }

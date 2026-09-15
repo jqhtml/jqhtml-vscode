@@ -1,0 +1,6 @@
+"<"	meta.tag.jqhtml.component punctuation.definition.tag.html
+"Foo"	meta.tag.jqhtml.component entity.name.tag.component.jqhtml
+" tag=\"x\">"	
+"</"	meta.tag.jqhtml.component punctuation.definition.tag.html
+"Foo"	meta.tag.jqhtml.component entity.name.tag.component.jqhtml
+">"	

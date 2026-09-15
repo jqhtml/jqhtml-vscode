@@ -1,9 +1,61 @@
 import * as vscode from 'vscode';
+import { TextDecoder } from 'util';
 import { build_exclude_pattern } from './excludes';
 import { JqhtmlComponentIndex } from './componentIndex';
 import { COMPONENT_NAME_SOURCE, COMPONENT_NAME_WORD } from './component_name';
+import { log } from './log';
 
 const DEFINE_NAME = new RegExp(`<Define:(${COMPONENT_NAME_SOURCE})`);
+
+/** Slot names are ordinary identifiers - the lexer accepts [A-Za-z0-9_]+. */
+const SLOT_NAME_SOURCE = '[A-Za-z0-9_]+';
+
+/** Files a JS class/function definition may live in. */
+const JS_FILE_PATTERN = /\.(js|mjs|ts)$/;
+
+/** End of a JS identifier: \b does not stop at `$`, which is a name character. */
+const IDENTIFIER_END = '(?![A-Za-z0-9_$])';
+
+/** $ and other regex metacharacters are legal in JS identifiers. */
+function escape_regex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Position of a byte offset in a string we read ourselves (no TextDocument). */
+function position_at(text: string, offset: number): vscode.Position {
+    let line = 0;
+    let last_newline = -1;
+    for (let i = 0; i < offset && i < text.length; i++) {
+        if (text[i] === '\n') {
+            line++;
+            last_newline = i;
+        }
+    }
+    return new vscode.Position(line, offset - last_newline - 1);
+}
+
+/**
+ * The $ attribute expression under the cursor.
+ *
+ * `via_this` records that the expression was written as `this.x`: the class name
+ * has already been resolved to the enclosing <Define:> component, but the search
+ * rules for `this` differ (no language-server probe, no standalone function).
+ */
+interface DollarAttributeContext {
+    className: string;
+    memberName?: string;
+    isFirstSegment: boolean;
+    via_this: boolean;
+}
+
+/**
+ * One workspace .js scan, shared between the class and the function search so a
+ * single Go to Definition never lists or reads the workspace twice.
+ */
+interface JsScan {
+    files?: vscode.Uri[];
+    texts: Map<string, string>;
+}
 
 /**
  * JQHTML Definition Provider
@@ -20,30 +72,25 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         position: vscode.Position,
         token: vscode.CancellationToken
     ): Promise<vscode.Definition | undefined> {
-        console.log(`\n========== JQHTML: provideDefinition called ==========`);
-        console.log(`File: ${document.uri.fsPath}`);
-        console.log(`Position: Line ${position.line + 1}, Character ${position.character}`);
+        log.debug(`definition: ${document.uri.fsPath}:${position.line + 1}:${position.character}`);
 
         const line = document.lineAt(position.line).text;
-        console.log(`JQHTML: Line text: "${line}"`);
 
         // Check if we're in a $ attribute with unquoted value
         const dollarAttrResult = this.checkDollarAttributeContext(document, position, line);
         if (dollarAttrResult) {
-            console.log(`JQHTML: In $ attribute context:`, dollarAttrResult);
-            return await this.handleDollarAttributeDefinition(document, position, dollarAttrResult);
+            log.debug(`definition: $ attribute context ${JSON.stringify(dollarAttrResult)}`);
+            return await this.handleDollarAttributeDefinition(document, position, dollarAttrResult, token);
         }
 
-        // IMPORTANT: Check for slot syntax BEFORE extracting word
-        // This prevents slot names from being treated as component names
-        // Check if we're in a slot tag by looking for <Slot: or </Slot: before cursor
+        // Check for slot syntax BEFORE extracting a word, so slot names are not
+        // treated as component names.
         const beforeCursor = line.substring(0, position.character);
-        if (beforeCursor.match(/<\/?Slot:\s*[A-Z][A-Za-z0-9_]*$/)) {
-            // We're in a slot tag - extract the full slot name from the line
-            const slotNameMatch = line.match(/<\/?Slot:\s*([A-Z][A-Za-z0-9_]*)/);
+        if (beforeCursor.match(new RegExp(`<\\/?Slot:\\s*${SLOT_NAME_SOURCE}$`))) {
+            const slotNameMatch = line.match(new RegExp(`<\\/?Slot:\\s*(${SLOT_NAME_SOURCE})`));
             if (slotNameMatch) {
                 const slotName = slotNameMatch[1];
-                console.log(`JQHTML: Detected slot tag syntax for slot: ${slotName}`);
+                log.debug(`definition: slot tag ${slotName}`);
                 return await this.handleSlotDefinition(document, position, slotName);
             }
         }
@@ -51,58 +98,47 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         // Get the word at the cursor position
         const wordRange = document.getWordRangeAtPosition(position, COMPONENT_NAME_WORD);
         if (!wordRange) {
-            console.log(`JQHTML: No word range found at position`);
             return undefined;
         }
 
         const word = document.getText(wordRange);
-        console.log(`JQHTML: Word at cursor: "${word}"`);
 
         // Check if this looks like a component reference
         if (!JqhtmlComponentIndex.isComponentReference(word)) {
-            console.log(`JQHTML: "${word}" is not a component reference (not _?Capital...)`);
             return undefined;
         }
-
-        // line already declared at top of function
-        const charBefore = wordRange.start.character > 0 ?
-            line.charAt(wordRange.start.character - 1) : '';
 
         // Check if this word is inside an extends="" attribute value
         let beforeWord = line.substring(0, wordRange.start.character);
         if (beforeWord.match(/extends\s*=\s*["']?\s*$/)) {
-            console.log(`JQHTML: "${word}" is in extends attribute, treating as component reference`);
-            // This is in extends="ComponentName", treat as component reference
             const componentDef = this.componentIndex.findComponent(word);
             if (!componentDef) {
-                console.log(`JQHTML: Component '${word}' not found in index`);
+                log.debug(`definition: component '${word}' not in index`);
                 return undefined;
             }
 
             // Verify the file still exists
             try {
                 await vscode.workspace.fs.stat(componentDef.uri);
-            } catch (error) {
-                console.log(`JQHTML: Component '${word}' definition file no longer exists`);
+            } catch {
+                log.debug(`definition: '${word}' definition file no longer exists`);
                 this.componentIndex.reindexWorkspace();
                 return undefined;
             }
 
-            console.log(`JQHTML: Found definition for '${word}' at ${componentDef.uri.fsPath}:${componentDef.position.line + 1}`);
             return new vscode.Location(componentDef.uri, componentDef.position);
         }
 
         // Check if this word is in a tag context
-        // Look for < before the component name (accounting for Define: prefix)
         let isInTagContext = false;
 
-        // Check for opening tag: <ComponentName or <Define:ComponentName
+        // Opening tag: <ComponentName or <Define:ComponentName
         beforeWord = line.substring(0, wordRange.start.character);
         if (beforeWord.match(/<\s*$/) || beforeWord.match(/<Define:\s*$/)) {
             isInTagContext = true;
         }
 
-        // Check for closing tag: </ComponentName or </Define:ComponentName
+        // Closing tag: </ComponentName or </Define:ComponentName
         if (beforeWord.match(/<\/\s*$/) || beforeWord.match(/<\/Define:\s*$/)) {
             isInTagContext = true;
         }
@@ -111,9 +147,7 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
             // Also check if cursor is inside the tag name (not in attributes)
             const afterWord = line.substring(wordRange.end.character);
 
-            // If there's a space or > after the word, and < before it somewhere
             if ((afterWord.match(/^[\s>]/) || afterWord.length === 0) && beforeWord.includes('<')) {
-                // Verify we're not in an attribute value
                 const lastLessThan = beforeWord.lastIndexOf('<');
                 const lastGreaterThan = beforeWord.lastIndexOf('>');
 
@@ -124,63 +158,31 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         }
 
         if (!isInTagContext) {
-            console.log(`JQHTML: "${word}" not in tag context, ignoring`);
+            log.debug(`definition: '${word}' not in tag context`);
             return undefined;
         }
 
-        console.log(`JQHTML: "${word}" IS in tag context, looking up in index...`);
-        console.log(`JQHTML: Current index size: ${this.componentIndex.getAllComponentNames().length} components`);
-        console.log(`JQHTML: Index contains: ${this.componentIndex.getAllComponentNames().join(', ')}`);
+        log.debug(`definition: index contains ${this.componentIndex.getAllComponentNames().join(', ')}`);
 
         // Look up the component in our index
         const componentDef = this.componentIndex.findComponent(word);
         if (!componentDef) {
-            // Component not found in index
-            //
-            // DIAGNOSTIC HISTORY:
-            // - Issue: Go to Definition goes to random CSS file instead of component
-            // - Symptom: Component correctly identified (e.g., "Contacts_Datagrid")
-            //           Tag context correctly detected
-            //           BUT findComponent() returns undefined
-            // - Root cause: Component not indexed by the indexing system
-            //
-            // POSSIBLE REASONS:
-            // 1. Component file not in workspace or not discovered during indexing
-            // 2. Component definition syntax not matching regex in componentIndex.ts
-            // 3. File watcher didn't detect the file creation/modification
-            // 4. Index hasn't run yet (extension just activated)
-            //
-            // WHEN THIS RETURNS UNDEFINED:
-            // VS Code falls back to built-in text search providers, which may find
-            // the component name in CSS class names (.Contacts_Datagrid), causing
-            // navigation to wrong files.
-            //
-            // NEXT DIAGNOSTIC STEPS:
-            // 1. Check if component file exists and is in workspace
-            // 2. Verify Define tag syntax matches indexing regex
-            // 3. Check file watcher is working (create new component, see if indexed)
-            // 4. Manually trigger reindex and check if component appears
-            console.log(`JQHTML: Component '${word}' not found in index`);
-            console.log(`JQHTML: RETURNING UNDEFINED - VS Code may fall back to other definition providers!`);
+            // Not indexed: VS Code falls back to its other definition providers,
+            // which is how a component name can resolve into a CSS file.
+            log.debug(`definition: component '${word}' not found in index`);
             return undefined;
         }
 
         // Verify the file still exists (catches stale index entries)
         try {
             await vscode.workspace.fs.stat(componentDef.uri);
-        } catch (error) {
-            // File no longer exists - trigger reindex and return undefined
-            console.log(`JQHTML: Component '${word}' definition file no longer exists: ${componentDef.uri.fsPath}`);
-            console.log(`JQHTML: Triggering workspace reindex...`);
+        } catch {
+            log.debug(`definition: '${word}' file is gone (${componentDef.uri.fsPath}), reindexing`);
             this.componentIndex.reindexWorkspace(); // Async, non-blocking
             return undefined;
         }
 
-        console.log(`JQHTML: Found definition for '${word}' at ${componentDef.uri.fsPath}:${componentDef.position.line + 1}`);
-        console.log(`JQHTML: RETURNING LOCATION - This should be the ONLY result!`);
-        console.log(`========== JQHTML: provideDefinition done ==========\n`);
-
-        // Return the location of the component definition
+        log.debug(`definition: '${word}' -> ${componentDef.uri.fsPath}:${componentDef.position.line + 1}`);
         return new vscode.Location(componentDef.uri, componentDef.position);
     }
 
@@ -189,14 +191,13 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
      * Returns the parsed segments and position info, or undefined if not in such context
      */
     private checkDollarAttributeContext(document: vscode.TextDocument, position: vscode.Position, line: string):
-        { className: string, memberName?: string, isFirstSegment: boolean } | undefined {
+        DollarAttributeContext | undefined {
 
         const char = position.character;
         const beforeCursor = line.substring(0, char);
         const afterCursor = line.substring(char);
 
         // Look for pattern: $attributeName=FirstSegment.secondSegment
-        // Match: $ followed by word, =, then identifier chains
         const dollarAttrMatch = beforeCursor.match(/\$\w+\s*=\s*([a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*)$/);
         if (!dollarAttrMatch) {
             return undefined;
@@ -206,8 +207,6 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         const expressionBeforeCursor = dollarAttrMatch[1];
         const expressionAfterCursor = afterCursor.match(/^([a-zA-Z0-9_$]*)/)?.[1] || '';
         const fullExpression = expressionBeforeCursor + expressionAfterCursor;
-
-        console.log(`JQHTML: Full $ attribute expression: "${fullExpression}"`);
 
         // Split by dots
         const segments = fullExpression.split('.');
@@ -227,31 +226,32 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
             charCount += segmentLength + 1; // +1 for the dot
         }
 
-        console.log(`JQHTML: Cursor on segment ${currentSegmentIndex}: "${segments[currentSegmentIndex]}"`);
-
-        // Handle "this" keyword - resolve to containing Define component
+        // Handle "this" keyword - resolve to containing Define component. The
+        // resolution is recorded in via_this because the search rules differ.
         let className = segments[0];
-        if (className === 'this') {
+        const via_this = className === 'this';
+        if (via_this) {
             const containingComponent = this.findContainingDefineComponent(document, position.line);
             if (!containingComponent) {
-                console.log(`JQHTML: "this" used but no containing Define component found`);
+                log.debug('definition: "this" used but no containing <Define:> found');
                 return undefined;
             }
             className = containingComponent;
-            console.log(`JQHTML: Resolved "this" to component: ${className}`);
+            log.debug(`definition: resolved "this" to ${className}`);
         }
 
         if (currentSegmentIndex === 0) {
             // First segment - just the class name
-            return { className, isFirstSegment: true };
-        } else {
-            // Second or later segment - class + member
-            return {
-                className,
-                memberName: segments[currentSegmentIndex],
-                isFirstSegment: false
-            };
+            return { className, isFirstSegment: true, via_this };
         }
+
+        // Second or later segment - class + member
+        return {
+            className,
+            memberName: segments[currentSegmentIndex],
+            isFirstSegment: false,
+            via_this
+        };
     }
 
     /**
@@ -277,154 +277,135 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
      * Single Segment (e.g., $handler=Controller):
      *   1. PHP class
      *   2. JS class
-     *   3. Standalone JS function (only if first segment is not "this")
+     *   3. Standalone JS function (only if the expression is not "this.*")
      *
      * Multiple Segments - First Segment (e.g., $handler=Controller.method, click on "Controller"):
      *   1. PHP class
-     *   2. JS class (if no PHP class found, or if first segment is "this")
-     *   3. Standalone JS function (only if not "this")
+     *   2. JS class (if no PHP class found)
      *
-     * Multiple Segments - Second+ Segment (e.g., $handler=Controller.method, click on "method"):
-     *   1. PHP method in PHP class → Fall back to PHP class if method not found
-     *   2. JS method in JS class → Fall back to JS class if method not found (if no PHP class found, or if "this")
+     * Multiple Segments - Second+ Segment (e.g., click on "method"):
+     *   1. PHP method in PHP class -> Fall back to PHP class if method not found
+     *   2. JS method in JS class -> Fall back to JS class if method not found
      *   (No standalone function search for second+ segments)
      *
-     * Special Case: "this" keyword
-     *   - Resolves to containing <Define:ComponentName>
-     *   - Only searches JS (PHP search skipped)
+     * Special Case: "this" (context.via_this)
+     *   - Resolved to the containing <Define:ComponentName>
+     *   - The name is ours, not the user's: no language-server probe (so no PHP
+     *     lookup) and no standalone-function search. Only the JS class search.
      */
     private async handleDollarAttributeDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
-        context: { className: string, memberName?: string, isFirstSegment: boolean }
+        context: DollarAttributeContext,
+        token: vscode.CancellationToken
     ): Promise<vscode.Definition | undefined> {
 
-        console.log(`JQHTML: Looking for class "${context.className}"${context.memberName ? `, member "${context.memberName}"` : ''}`);
+        log.debug(`definition: looking for class "${context.className}"${context.memberName ? `, member "${context.memberName}"` : ''}`);
 
-        const isThisKeyword = context.className === 'this';
+        const scan: JsScan = { texts: new Map() };
 
-        // Priority 1: Search PHP classes/methods (skip if "this" keyword)
-        if (!isThisKeyword) {
+        // Priority 1: Search PHP classes/methods (skipped for "this")
+        if (!context.via_this) {
             const phpResult = await this.searchPhpDefinition(context);
             if (phpResult) {
                 return phpResult;
             }
         }
 
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
         // Priority 2: Search JS classes/methods
-        const jsClassResult = await this.searchJsClassDefinition(context);
+        const jsClassResult = await this.searchJsClassDefinition(context, scan, token);
         if (jsClassResult) {
             return jsClassResult;
         }
 
-        // Priority 3: Search standalone JS functions (only for single segment, not "this")
-        if (context.isFirstSegment && !context.memberName && !isThisKeyword) {
-            const jsFunctionResult = await this.searchStandaloneJsFunction(context.className);
+        // Priority 3: Standalone JS functions (single segment only, never "this")
+        if (context.isFirstSegment && !context.memberName && !context.via_this) {
+            const jsFunctionResult = await this.searchStandaloneJsFunction(context.className, scan, token);
             if (jsFunctionResult) {
                 return jsFunctionResult;
             }
         }
 
-        console.log(`JQHTML: No definition found for "${context.className}"${context.memberName ? `.${context.memberName}` : ''}`);
+        log.debug(`definition: nothing found for "${context.className}"${context.memberName ? `.${context.memberName}` : ''}`);
         return undefined;
     }
 
     /**
-     * Search for PHP class and optionally method
+     * Ask the installed language servers for a symbol by name.
      *
-     * IMPLEMENTATION: Uses VS Code's workspace symbol provider API to query Intelephense's symbol index.
-     *
-     * This approach:
-     * - Leverages Intelephense's existing indexed symbol database
-     * - No temporary documents or window management issues
-     * - Fast symbol lookup via vscode.executeWorkspaceSymbolProvider
-     * - Gracefully falls back if Intelephense not installed
-     * - No manual indexing or file scanning required
-     *
-     * We query workspace symbols by name (class or method), then filter results
-     * to find PHP symbols and navigate to their definitions.
+     * Intelephense answers for PHP and the TypeScript server for .js/.ts/.mjs,
+     * so one command covers both and neither needs a file scan.
      */
-    private async searchPhpDefinition(
-        context: { className: string, memberName?: string, isFirstSegment: boolean }
-    ): Promise<vscode.Location | undefined> {
-
+    private async findWorkspaceSymbol(
+        name: string,
+        kinds: vscode.SymbolKind[],
+        file_pattern: RegExp
+    ): Promise<vscode.SymbolInformation | undefined> {
         try {
-            // Check if Intelephense is installed
-            const intelephenseExt = vscode.extensions.getExtension('bmewburn.vscode-intelephense-client');
-            if (!intelephenseExt) {
-                console.log(`JQHTML: Intelephense extension not installed, skipping PHP lookup`);
-                return undefined;
-            }
-
-            // Search for the class first
-            console.log(`JQHTML: Searching workspace symbols for PHP class: ${context.className}`);
-            const classSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+            const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
                 'vscode.executeWorkspaceSymbolProvider',
-                context.className
+                name
             );
-
-            if (!classSymbols || classSymbols.length === 0) {
-                console.log(`JQHTML: No workspace symbols found for class: ${context.className}`);
+            if (!symbols || symbols.length === 0) {
                 return undefined;
             }
-
-            // Filter to PHP class symbols
-            const phpClassSymbol = classSymbols.find(s =>
-                s.name === context.className &&
-                s.kind === vscode.SymbolKind.Class &&
-                s.location.uri.fsPath.endsWith('.php')
+            return symbols.find(s =>
+                s.name === name &&
+                kinds.indexOf(s.kind) !== -1 &&
+                file_pattern.test(s.location.uri.fsPath)
             );
-
-            if (!phpClassSymbol) {
-                console.log(`JQHTML: No PHP class symbol found for: ${context.className}`);
-                return undefined;
-            }
-
-            console.log(`JQHTML: Found PHP class ${context.className} in ${phpClassSymbol.location.uri.fsPath}`);
-
-            // If we're looking for the class itself (first segment, no member)
-            if (context.isFirstSegment && !context.memberName) {
-                return phpClassSymbol.location;
-            }
-
-            // If we're looking for a method within the class
-            if (context.memberName) {
-                console.log(`JQHTML: Searching for method: ${context.memberName} in class ${context.className}`);
-
-                // Search for the method name in workspace symbols
-                const methodSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-                    'vscode.executeWorkspaceSymbolProvider',
-                    context.memberName
-                );
-
-                // Filter to methods in the same PHP file as the class
-                const phpMethodSymbol = methodSymbols?.find(s =>
-                    s.name === context.memberName &&
-                    s.kind === vscode.SymbolKind.Method &&
-                    s.location.uri.toString() === phpClassSymbol.location.uri.toString()
-                );
-
-                if (phpMethodSymbol) {
-                    console.log(`JQHTML: Found PHP method ${context.memberName} in ${phpMethodSymbol.location.uri.fsPath}`);
-                    return phpMethodSymbol.location;
-                }
-
-                // Method not found - fall back to class definition
-                console.log(`JQHTML: Method ${context.memberName} not found, falling back to class definition`);
-                return phpClassSymbol.location;
-            }
-
-            return phpClassSymbol.location;
-
         } catch (error) {
-            console.error(`JQHTML: Error using workspace symbol provider:`, error);
+            log.error('JQHTML: workspace symbol provider failed', error);
             return undefined;
         }
     }
 
     /**
-     * Search for JS class and optionally method
+     * Search for PHP class and optionally method, through Intelephense's symbol
+     * index (vscode.executeWorkspaceSymbolProvider). No file scanning.
      */
+    private async searchPhpDefinition(
+        context: DollarAttributeContext
+    ): Promise<vscode.Location | undefined> {
+
+        // Check if Intelephense is installed
+        const intelephenseExt = vscode.extensions.getExtension('bmewburn.vscode-intelephense-client');
+        if (!intelephenseExt) {
+            log.debug('definition: Intelephense not installed, skipping PHP lookup');
+            return undefined;
+        }
+
+        const phpClassSymbol = await this.findWorkspaceSymbol(
+            context.className, [vscode.SymbolKind.Class], /\.php$/);
+
+        if (!phpClassSymbol) {
+            log.debug(`definition: no PHP class symbol for ${context.className}`);
+            return undefined;
+        }
+
+        // Looking for the class itself
+        if (!context.memberName) {
+            return phpClassSymbol.location;
+        }
+
+        // Looking for a method within the class
+        const phpMethodSymbol = await this.findWorkspaceSymbol(
+            context.memberName, [vscode.SymbolKind.Method], /\.php$/);
+
+        if (phpMethodSymbol &&
+            phpMethodSymbol.location.uri.toString() === phpClassSymbol.location.uri.toString()) {
+            return phpMethodSymbol.location;
+        }
+
+        // Method not found - fall back to class definition
+        log.debug(`definition: PHP method ${context.memberName} not found, using the class`);
+        return phpClassSymbol.location;
+    }
+
     /**
      * Find the workspace .js files that the user can actually see.
      *
@@ -448,45 +429,115 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         return files;
     }
 
+    /** The file list for this Go to Definition, computed at most once. */
+    private async scan_files(scan: JsScan): Promise<vscode.Uri[]> {
+        if (!scan.files) {
+            scan.files = await this.findWorkspaceJsFiles();
+        }
+        return scan.files;
+    }
+
+    /**
+     * Read a file without pulling it into the editor's document model - a
+     * Go to Definition must not open every .js file in the workspace.
+     */
+    private async read_text(uri: vscode.Uri, scan?: JsScan): Promise<string | undefined> {
+        const key = uri.toString();
+        if (scan) {
+            const cached = scan.texts.get(key);
+            if (cached !== undefined) {
+                return cached;
+            }
+        }
+        try {
+            const bytes = await vscode.workspace.fs.readFile(uri);
+            const text = new TextDecoder().decode(bytes);
+            if (scan) {
+                scan.texts.set(key, text);
+            }
+            return text;
+        } catch (error) {
+            log.debug(`definition: could not read ${uri.fsPath}: ${String(error)}`);
+            return undefined;
+        }
+    }
+
+    /**
+     * Search for a JS class and optionally one of its members.
+     *
+     * The language server is asked first; the workspace scan is the fallback.
+     */
     private async searchJsClassDefinition(
-        context: { className: string, memberName?: string, isFirstSegment: boolean }
+        context: DollarAttributeContext,
+        scan: JsScan,
+        token: vscode.CancellationToken
     ): Promise<vscode.Location | undefined> {
+
+        const class_regex = new RegExp(`^\\s*(?:export\\s+)?class\\s+${escape_regex(context.className)}${IDENTIFIER_END}`, 'm');
+
+        // A "this.*" class name was inferred by us from the enclosing <Define:>,
+        // so it is not put to the language servers - see the priority matrix.
+        if (!context.via_this) {
+            const symbol = await this.findWorkspaceSymbol(
+                context.className, [vscode.SymbolKind.Class], JS_FILE_PATTERN);
+
+            if (symbol) {
+                if (!context.memberName) {
+                    return symbol.location;
+                }
+                const text = await this.read_text(symbol.location.uri, scan);
+                if (text) {
+                    const classMatch = class_regex.exec(text);
+                    if (classMatch) {
+                        const offset = this.findJsClassMemberOffset(text, classMatch.index, context.memberName);
+                        if (offset !== undefined) {
+                            return new vscode.Location(symbol.location.uri, position_at(text, offset));
+                        }
+                    }
+                }
+                // Member not found - the class itself is still the best answer.
+                return symbol.location;
+            }
+        }
+
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
 
         // Excluded folders are hidden from the user, so a definition found there is
         // one they cannot search for - see excludes.ts.
-        const jsFiles = await this.findWorkspaceJsFiles();
+        const jsFiles = await this.scan_files(scan);
 
         for (const fileUri of jsFiles) {
-            const fileDoc = await vscode.workspace.openTextDocument(fileUri);
-            const fileText = fileDoc.getText();
-
-            // Look for class definition: class ClassName
-            const classRegex = new RegExp(`^\\s*(?:export\\s+)?class\\s+${context.className}\\b`, 'm');
-            const classMatch = classRegex.exec(fileText);
-
-            if (classMatch) {
-                console.log(`JQHTML: Found JS class ${context.className} in ${fileUri.fsPath}`);
-
-                // If we're on the first segment, go to the class definition
-                if (context.isFirstSegment && !context.memberName) {
-                    const classPos = fileDoc.positionAt(classMatch.index + classMatch[0].indexOf(context.className));
-                    return new vscode.Location(fileUri, classPos);
-                }
-
-                // If we're on a later segment, try to find the method/property in the class
-                if (context.memberName) {
-                    const memberLocation = this.findJsClassMember(fileDoc, fileText, classMatch.index, context.memberName);
-                    if (memberLocation) {
-                        console.log(`JQHTML: Found JS method ${context.memberName} in class ${context.className}`);
-                        return new vscode.Location(fileUri, memberLocation);
-                    }
-
-                    // Method not found, but we found the class - fall back to class definition
-                    console.log(`JQHTML: JS method ${context.memberName} not found, falling back to JS class definition`);
-                    const classPos = fileDoc.positionAt(classMatch.index + classMatch[0].indexOf(context.className));
-                    return new vscode.Location(fileUri, classPos);
-                }
+            if (token.isCancellationRequested) {
+                return undefined;
             }
+
+            const fileText = await this.read_text(fileUri, scan);
+            if (!fileText) {
+                continue;
+            }
+
+            const classMatch = class_regex.exec(fileText);
+            if (!classMatch) {
+                continue;
+            }
+
+            log.debug(`definition: found JS class ${context.className} in ${fileUri.fsPath}`);
+            const classOffset = classMatch.index + classMatch[0].indexOf(context.className);
+
+            if (!context.memberName) {
+                return new vscode.Location(fileUri, position_at(fileText, classOffset));
+            }
+
+            const memberOffset = this.findJsClassMemberOffset(fileText, classMatch.index, context.memberName);
+            if (memberOffset !== undefined) {
+                return new vscode.Location(fileUri, position_at(fileText, memberOffset));
+            }
+
+            // Member not found, but we found the class - fall back to it.
+            log.debug(`definition: JS member ${context.memberName} not found, using the class`);
+            return new vscode.Location(fileUri, position_at(fileText, classOffset));
         }
 
         return undefined;
@@ -494,36 +545,56 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
 
     /**
      * Search for standalone JS function (not in a class)
-     * Only called for single-segment expressions where first segment is not "this"
+     * Only called for single-segment expressions that were not written as "this".
      */
-    private async searchStandaloneJsFunction(functionName: string): Promise<vscode.Location | undefined> {
-        // Excluded folders are hidden from the user, so a definition found there is
-        // one they cannot search for - see excludes.ts.
-        const jsFiles = await this.findWorkspaceJsFiles();
+    private async searchStandaloneJsFunction(
+        functionName: string,
+        scan: JsScan,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location | undefined> {
+
+        const symbol = await this.findWorkspaceSymbol(
+            functionName,
+            [vscode.SymbolKind.Function, vscode.SymbolKind.Variable],
+            JS_FILE_PATTERN);
+        if (symbol) {
+            return symbol.location;
+        }
+
+        if (token.isCancellationRequested) {
+            return undefined;
+        }
+
+        const name = escape_regex(functionName);
+        // function fn / async function fn
+        const functionRegex = new RegExp(`^\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${name}${IDENTIFIER_END}`, 'm');
+        // const/let/var fn = ...
+        const constFunctionRegex = new RegExp(`^\\s*(?:export\\s+)?(?:const|let|var)\\s+${name}\\s*=`, 'm');
+
+        const jsFiles = await this.scan_files(scan);
 
         for (const fileUri of jsFiles) {
-            const fileDoc = await vscode.workspace.openTextDocument(fileUri);
-            const fileText = fileDoc.getText();
-
-            // Look for function declaration: function functionName
-            // or const/let/var functionName = function
-            const functionRegex = new RegExp(`^\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${functionName}\\b`, 'm');
-            const functionMatch = functionRegex.exec(fileText);
-
-            if (functionMatch) {
-                console.log(`JQHTML: Found standalone JS function ${functionName} in ${fileUri.fsPath}`);
-                const functionPos = fileDoc.positionAt(functionMatch.index + functionMatch[0].indexOf(functionName));
-                return new vscode.Location(fileUri, functionPos);
+            if (token.isCancellationRequested) {
+                return undefined;
             }
 
-            // Also check for: const functionName = ...
-            const constFunctionRegex = new RegExp(`^\\s*(?:export\\s+)?(?:const|let|var)\\s+${functionName}\\s*=`, 'm');
-            const constMatch = constFunctionRegex.exec(fileText);
+            const fileText = await this.read_text(fileUri, scan);
+            if (!fileText) {
+                continue;
+            }
 
+            const functionMatch = functionRegex.exec(fileText);
+            if (functionMatch) {
+                log.debug(`definition: found function ${functionName} in ${fileUri.fsPath}`);
+                return new vscode.Location(fileUri,
+                    position_at(fileText, functionMatch.index + functionMatch[0].indexOf(functionName)));
+            }
+
+            const constMatch = constFunctionRegex.exec(fileText);
             if (constMatch) {
-                console.log(`JQHTML: Found standalone JS function ${functionName} (const/let/var) in ${fileUri.fsPath}`);
-                const functionPos = fileDoc.positionAt(constMatch.index + constMatch[0].indexOf(functionName));
-                return new vscode.Location(fileUri, functionPos);
+                log.debug(`definition: found ${functionName} (const/let/var) in ${fileUri.fsPath}`);
+                return new vscode.Location(fileUri,
+                    position_at(fileText, constMatch.index + constMatch[0].indexOf(functionName)));
             }
         }
 
@@ -531,31 +602,32 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
     }
 
     /**
-     * Find a method or property within a JS class definition
+     * Offset of a method or property within a JS class body, or undefined.
      */
-    private findJsClassMember(document: vscode.TextDocument, fileText: string, classStartIndex: number, memberName: string): vscode.Position | undefined {
+    private findJsClassMemberOffset(fileText: string, classStartIndex: number, memberName: string): number | undefined {
         // Find the class body (starts at { after class declaration)
         const classBodyStart = fileText.indexOf('{', classStartIndex);
-        if (classBodyStart === -1) return undefined;
+        if (classBodyStart === -1) {
+            return undefined;
+        }
 
         // Find matching closing brace
         let braceCount = 1;
         let classBodyEnd = classBodyStart + 1;
         while (classBodyEnd < fileText.length && braceCount > 0) {
-            if (fileText[classBodyEnd] === '{') braceCount++;
-            if (fileText[classBodyEnd] === '}') braceCount--;
+            if (fileText[classBodyEnd] === '{') { braceCount++; }
+            if (fileText[classBodyEnd] === '}') { braceCount--; }
             classBodyEnd++;
         }
 
         const classBody = fileText.substring(classBodyStart, classBodyEnd);
 
         // Look for method: methodName() { or property: methodName =
-        const methodRegex = new RegExp(`^\\s*(?:async\\s+)?${memberName}\\s*[=(]`, 'm');
+        const methodRegex = new RegExp(`^\\s*(?:async\\s+)?${escape_regex(memberName)}\\s*[=(]`, 'm');
         const methodMatch = methodRegex.exec(classBody);
 
         if (methodMatch) {
-            const absoluteIndex = classBodyStart + methodMatch.index + methodMatch[0].indexOf(memberName);
-            return document.positionAt(absoluteIndex);
+            return classBodyStart + methodMatch.index + methodMatch[0].indexOf(memberName);
         }
 
         return undefined;
@@ -568,54 +640,34 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
      * - Handles direct extends="ComponentName" on <Define:> tags
      * - Handles direct <ComponentName> invocation tags
      * - Does NOT traverse full inheritance chain (TODO: add later)
-     * - Just looks for direct parent component
-     *
-     * LOGIC:
-     * 1. Extract slot name from cursor position
-     * 2. Find parent component:
-     *    - If inside <Define extends="Parent">, use Parent
-     *    - If inside <Parent> invocation, use Parent
-     * 3. Find Parent.jqhtml file
-     * 4. Search for <%= content('SlotName') %>
-     * 5. Navigate to that line
      */
     private async handleSlotDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
         slotName: string
     ): Promise<vscode.Location | undefined> {
-        console.log(`JQHTML: Handling slot definition for: ${slotName}`);
 
         // Find the parent component that defines this slot
         const parentComponentName = this.findParentComponentForSlot(document, position);
         if (!parentComponentName) {
-            console.log(`JQHTML: Could not determine parent component for slot`);
+            log.debug('definition: could not determine the parent component for the slot');
             return undefined;
         }
-
-        console.log(`JQHTML: Parent component for slot: ${parentComponentName}`);
-
-        // Debug: Show what's in the index
-        const allComponents = this.componentIndex.getAllComponentNames();
-        console.log(`JQHTML: Index currently contains ${allComponents.length} components:`, allComponents.join(', '));
 
         // Find the parent component definition file
         const parentComponent = this.componentIndex.findComponent(parentComponentName);
         if (!parentComponent) {
-            console.log(`JQHTML: Parent component '${parentComponentName}' not found in index`);
+            log.debug(`definition: parent component '${parentComponentName}' not in index`);
             return undefined;
         }
-
-        console.log(`JQHTML: Found parent component file: ${parentComponent.uri.fsPath}`);
 
         // Search for content('SlotName') in the parent component file
         const slotUsageLocation = await this.findSlotUsageInTemplate(parentComponent.uri, slotName);
         if (!slotUsageLocation) {
-            console.log(`JQHTML: Slot usage content('${slotName}') not found in ${parentComponent.uri.fsPath}`);
+            log.debug(`definition: content('${slotName}') not found in ${parentComponent.uri.fsPath}`);
             return undefined;
         }
 
-        console.log(`JQHTML: Found slot usage at line ${slotUsageLocation.range.start.line + 1}`);
         return slotUsageLocation;
     }
 
@@ -632,66 +684,45 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
     ): string | undefined {
         const currentLine = position.line;
 
-        // Strategy 1: Look for <Define extends="ParentComponent"> where slots are at top level
-        // Scan upward to find the Define tag
+        // Strategy 1: <Define extends="ParentComponent"> with top-level slots
         let defineTagStartLine = -1;
         for (let i = currentLine; i >= 0; i--) {
-            const lineText = document.lineAt(i).text;
-
-            // Check if we found a <Define:ComponentName
-            if (lineText.match(DEFINE_NAME)) {
+            if (document.lineAt(i).text.match(DEFINE_NAME)) {
                 defineTagStartLine = i;
-                console.log(`JQHTML: Found <Define: tag at line ${i + 1}`);
                 break;
             }
         }
 
         // If we found a Define tag, look for extends attribute in the tag (may be multi-line)
         if (defineTagStartLine >= 0) {
-            // Collect all lines from Define tag start until we find the closing >
             let tagContent = '';
             for (let i = defineTagStartLine; i < document.lineCount; i++) {
                 const lineText = document.lineAt(i).text;
                 tagContent += lineText + ' ';
 
-                // Stop when we find the closing > of the opening tag
                 if (lineText.includes('>')) {
                     break;
                 }
             }
 
-            // Now check if this multi-line tag has extends attribute
             const extendsMatch = tagContent.match(new RegExp(`\\bextends\\s*=\\s*["'](${COMPONENT_NAME_SOURCE})["']`));
             if (extendsMatch) {
-                const parentComponentName = extendsMatch[1];
-                console.log(`JQHTML: Found extends="${parentComponentName}" in Define tag`);
-
-                // TODO: Verify that the slot is at top level (not nested inside other tags)
-                // For now, we assume if we found a Define with extends, that's the parent
-                return parentComponentName;
-            } else {
-                console.log(`JQHTML: Define tag found but no extends attribute`);
+                // TODO: verify the slot is at top level (not nested inside other tags)
+                return extendsMatch[1];
             }
         }
 
-        // Strategy 2: Look for enclosing <ParentComponent> invocation tag
-        // Scan upward to find opening tag
-        let tagStack: string[] = [];
+        // Strategy 2: enclosing <ParentComponent> invocation tag
+        const tagStack: string[] = [];
         for (let i = currentLine; i >= 0; i--) {
             const lineText = document.lineAt(i).text;
 
-            // Find all component tags on this line (both opening and closing)
-            // Component tags: <ComponentName> or </ComponentName>
             const tagRegex = new RegExp(`<\\/?(${COMPONENT_NAME_SOURCE})[^>]*>`, 'g');
             let match;
 
-            // Collect all tags on this line
             const tagsOnLine: { tag: string; isClosing: boolean }[] = [];
             while ((match = tagRegex.exec(lineText)) !== null) {
-                const fullMatch = match[0];
-                const componentName = match[1];
-                const isClosing = fullMatch.startsWith('</');
-                tagsOnLine.push({ tag: componentName, isClosing });
+                tagsOnLine.push({ tag: match[1], isClosing: match[0].startsWith('</') });
             }
 
             // Process tags in reverse order (right to left on the line)
@@ -699,23 +730,17 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
                 const { tag, isClosing } = tagsOnLine[j];
 
                 if (isClosing) {
-                    // Closing tag - add to stack
                     tagStack.push(tag);
+                } else if (tagStack.length > 0 && tagStack[tagStack.length - 1] === tag) {
+                    // Matches the last closing tag seen - they cancel out
+                    tagStack.pop();
                 } else {
-                    // Opening tag
-                    if (tagStack.length > 0 && tagStack[tagStack.length - 1] === tag) {
-                        // This opening tag matches the last closing tag on stack - they cancel out
-                        tagStack.pop();
-                    } else {
-                        // This is an unclosed opening tag - this is our parent!
-                        console.log(`JQHTML: Found enclosing component invocation: <${tag}>`);
-                        return tag;
-                    }
+                    // An unclosed opening tag - this is our parent
+                    return tag;
                 }
             }
         }
 
-        console.log(`JQHTML: No parent component found for slot`);
         return undefined;
     }
 
@@ -726,37 +751,27 @@ export class JqhtmlDefinitionProvider implements vscode.DefinitionProvider {
         templateUri: vscode.Uri,
         slotName: string
     ): Promise<vscode.Location | undefined> {
-        try {
-            const templateDoc = await vscode.workspace.openTextDocument(templateUri);
-            const templateText = templateDoc.getText();
-
-            // Search for content('SlotName') or content("SlotName")
-            // Also handle optional whitespace
-            const contentRegex = new RegExp(`<%=\\s*content\\s*\\(\\s*['"]${slotName}['"]\\s*\\)`, 'g');
-            const match = contentRegex.exec(templateText);
-
-            if (match) {
-                const matchPosition = templateDoc.positionAt(match.index);
-                console.log(`JQHTML: Found content('${slotName}') at line ${matchPosition.line + 1}`);
-
-                // Return location pointing to the slot name within content('SlotName')
-                const slotNameStartIndex = match.index + match[0].indexOf(slotName);
-                const slotNamePosition = templateDoc.positionAt(slotNameStartIndex);
-                const slotNameRange = new vscode.Range(
-                    slotNamePosition,
-                    new vscode.Position(slotNamePosition.line, slotNamePosition.character + slotName.length)
-                );
-
-                return new vscode.Location(templateUri, slotNameRange);
-            }
-
-            console.log(`JQHTML: No content('${slotName}') found in template`);
-            return undefined;
-
-        } catch (error) {
-            console.error(`JQHTML: Error reading template file:`, error);
+        const templateText = await this.read_text(templateUri);
+        if (templateText === undefined) {
             return undefined;
         }
+
+        // content('SlotName') or content("SlotName"), whitespace tolerated
+        const contentRegex = new RegExp(`<%=\\s*content\\s*\\(\\s*['"]${escape_regex(slotName)}['"]\\s*\\)`);
+        const match = contentRegex.exec(templateText);
+
+        if (!match) {
+            return undefined;
+        }
+
+        // Point at the slot name within content('SlotName')
+        const slotNamePosition = position_at(templateText, match.index + match[0].indexOf(slotName));
+        const slotNameRange = new vscode.Range(
+            slotNamePosition,
+            new vscode.Position(slotNamePosition.line, slotNamePosition.character + slotName.length)
+        );
+
+        return new vscode.Location(templateUri, slotNameRange);
     }
 
 }
@@ -778,31 +793,34 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
         const line = document.lineAt(position.line).text;
         const char = position.character;
 
-        // Check for $redrawable attribute
-        const redrawableMatch = line.match(/\$redrawable(?=\s|>|\/)/);
-        if (redrawableMatch && line.indexOf('$redrawable') <= char && char <= line.indexOf('$redrawable') + '$redrawable'.length) {
+        // $redrawable - the occurrence under the cursor, not the first on the line.
+        const redrawableRegex = /\$redrawable(?=\s|>|\/|$)/g;
+        let redrawableMatch;
+        while ((redrawableMatch = redrawableRegex.exec(line)) !== null) {
+            const start = redrawableMatch.index;
+            const end = start + '$redrawable'.length;
+            if (char < start || char > end) {
+                continue;
+            }
+
             const markdown = new vscode.MarkdownString();
             markdown.appendMarkdown(`**\`$redrawable\` Attribute**\n\n`);
             markdown.appendMarkdown(`Converts this tag into an anonymous component class, allowing it to be redrawn on demand.\n\n`);
             markdown.appendMarkdown(`**Usage:**\n\`\`\`javascript\nthis.$sid('element_id').render()\n\`\`\`\n\n`);
             markdown.appendMarkdown(`Call \`render()\` on the element's scoped ID to trigger a re-render of just this element without affecting the rest of the component.`);
 
-            const wordRange = new vscode.Range(
-                new vscode.Position(position.line, line.indexOf('$redrawable')),
-                new vscode.Position(position.line, line.indexOf('$redrawable') + '$redrawable'.length)
+            const range = new vscode.Range(
+                new vscode.Position(position.line, start),
+                new vscode.Position(position.line, end)
             );
-            return new vscode.Hover(markdown, wordRange);
+            return new vscode.Hover(markdown, range);
         }
 
         // Check for tag="" attribute on components (Define tags or component invocations)
-        // Look backwards from cursor to find if we're in a tag="" attribute
         const beforeCursor = line.substring(0, char);
-        const afterCursor = line.substring(char);
 
-        // Check if we're hovering over "tag" attribute name or its value
         const tagAttrMatch = beforeCursor.match(new RegExp(`<(Define:${COMPONENT_NAME_SOURCE}|${COMPONENT_NAME_SOURCE})[^>]*\\btag\\s*=\\s*["']?(\\w*)$`));
         if (tagAttrMatch) {
-            // We're in or near a tag attribute
             const markdown = new vscode.MarkdownString();
             markdown.appendMarkdown(`**\`tag\` Attribute**\n\n`);
             markdown.appendMarkdown(`Sets the HTML element type for this component.\n\n`);
@@ -816,8 +834,7 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
             return new vscode.Hover(markdown);
         }
 
-        // Original component hover logic
-        // Get the word at the cursor position
+        // Component hover
         const wordRange = document.getWordRangeAtPosition(position, COMPONENT_NAME_WORD);
         if (!wordRange) {
             return undefined;
@@ -825,13 +842,11 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
 
         const word = document.getText(wordRange);
 
-        // Check if this looks like a component reference
         if (!JqhtmlComponentIndex.isComponentReference(word)) {
             return undefined;
         }
 
-        // Verify this is in a tag context (same logic as definition provider)
-        // line already declared at top of function
+        // Verify this is in a tag context (same logic as the definition provider)
         const beforeWord = line.substring(0, wordRange.start.character);
 
         let isInTagContext = false;
@@ -858,7 +873,6 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
         // Look up the component in our index
         const componentDef = this.componentIndex.findComponent(word);
         if (!componentDef) {
-            // Show that component is not defined
             const markdown = new vscode.MarkdownString();
             markdown.appendMarkdown(`**JQHTML Component:** \`${word}\`\n\n`);
             markdown.appendMarkdown(`⚠️ *Component definition not found in workspace*`);
@@ -866,15 +880,12 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
             return new vscode.Hover(markdown, wordRange);
         }
 
-        // Create hover content
         const markdown = new vscode.MarkdownString();
         markdown.appendMarkdown(`**JQHTML Component:** \`${word}\`\n\n`);
 
-        // Show file location
         const relativePath = vscode.workspace.asRelativePath(componentDef.uri);
         markdown.appendMarkdown(`📁 **Defined in:** \`${relativePath}:${componentDef.position.line + 1}\`\n\n`);
 
-        // Show the definition line
         if (componentDef.line) {
             markdown.appendCodeblock(componentDef.line, 'jqhtml');
         }

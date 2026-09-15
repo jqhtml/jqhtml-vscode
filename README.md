@@ -114,7 +114,7 @@ All JQHTML syntax is highlighted with semantic colors:
 
 Basic HTML tag and attribute completion is provided through VS Code's built-in HTML support. In addition, the extension ships custom, JQHTML-aware providers:
 
-- **Go to Definition** - Jump from a component tag, `$` attribute reference, `extends=""` attribute, or `Slot:` name to where it's defined, backed by a workspace-wide component index.
+- **Go to Definition** - Jump from a component tag, `$` attribute reference, `extends=""` attribute, or `Slot:` name to where it's defined, backed by a workspace-wide component index. Slot names are ordinary identifiers, so `<Slot:header>` navigates just like `<Slot:Header>`; a `$attr=this.member` reference resolves against the enclosing `<Define:>` component and is looked up in JavaScript only (no PHP lookup, and no standalone-function fallback). Other `$` references try PHP classes first, then JavaScript classes, then standalone JavaScript functions, asking the installed language servers before falling back to scanning the workspace.
 - **Hover** - Hover over a component name for JQHTML-specific information, using the same component index.
 
 ### Code Folding
@@ -155,6 +155,10 @@ Two settings control this behavior:
 | `jqhtml.enableBladeSupport` | `true` | Enable JQHTML component highlighting in Laravel Blade (`.blade.php`) files |
 | `jqhtml.enableBladeAutoSpacing` | `true` | Automatically add spaces inside Blade tags when typing |
 
+### Output and Diagnostics
+
+Everything the extension has to say goes to the **JQHTML** output channel (View -> Output, then pick `JQHTML` from the dropdown) rather than to the developer console: the workspace index summary, duplicate-component warnings and errors are always recorded there. Setting `jqhtml.debug` to `true` adds verbose tracing - every Go to Definition decision, the indexing steps, and what the component index contains - which is what to turn on before reporting a navigation problem. It defaults to `false`.
+
 ## Configuration
 
 The extension sets these defaults for JQHTML files:
@@ -177,6 +181,28 @@ You can override these in your VS Code settings.
 ## Theme Support
 
 The extension uses standard TextMate scopes and works with all VS Code themes. For best results, use a theme with good HTML/JavaScript support.
+
+## Testing
+
+From `packages/vscode-extension`, after `./build.sh --dev`:
+
+```bash
+npm test               # all three tiers
+npm run test:unit      # formatter fixtures + provider unit tests (sub-second)
+npm run test:grammar   # TextMate tokenisation snapshots
+npm run test:host      # a real VS Code extension host
+JQHTML_FAST=1 npm test # tiers 1 and 2; the extension host tier prints SKIPPED
+```
+
+- **Tier 1** loads the compiled `out/*.js` with the `vscode` module replaced by
+  an in-memory stub, and covers the formatter, the component index, Go to
+  Definition, hovers, Blade semantic tokens and Blade auto-spacing.
+- **Tier 2** tokenises fixtures with the same TextMate engine VS Code runs and
+  compares every token against a checked-in snapshot.
+- **Tier 3** launches a real VS Code, opens a fixture workspace and drives the
+  extension through VS Code's own commands. It downloads VS Code (~1 GB) into
+  `~/.cache/jqhtml-vscode-test/` on first run (override with `JQHTML_VSCODE_CACHE`) and needs a display (it uses `xvfb-run`
+  automatically when `DISPLAY` is unset).
 
 ## License
 

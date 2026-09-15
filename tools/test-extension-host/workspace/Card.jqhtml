@@ -1,0 +1,4 @@
+<Define:Card tag="section">
+    <div class="card-head"><%= content('header') %></div>
+    <div class="card-body"><%= content() %></div>
+</Define:Card>

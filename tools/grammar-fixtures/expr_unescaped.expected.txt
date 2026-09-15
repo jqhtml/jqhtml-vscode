@@ -1,0 +1,5 @@
+"<%!="	meta.embedded.expression.javascript punctuation.section.embedded.begin.expression.jqhtml
+" "	meta.embedded.expression.javascript source.js
+"x"	meta.embedded.expression.javascript source.js variable.other.readwrite.js
+" "	meta.embedded.expression.javascript source.js
+"%>"	meta.embedded.expression.javascript punctuation.section.embedded.end.expression.jqhtml

@@ -1,0 +1,16 @@
+"<%"	meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+" "	meta.embedded.block.javascript
+"if"	meta.embedded.block.javascript keyword.control.js
+" "	meta.embedded.block.javascript
+"("	meta.embedded.block.javascript keyword.operator.bracket.js
+"x"	meta.embedded.block.javascript
+")"	meta.embedded.block.javascript keyword.operator.bracket.js
+" "	meta.embedded.block.javascript
+"{"	meta.embedded.block.javascript keyword.operator.bracket.js
+" "	meta.embedded.block.javascript
+"%>"	meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml
+"<%"	meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+" "	meta.embedded.block.javascript
+"}"	meta.embedded.block.javascript keyword.operator.bracket.js
+" "	meta.embedded.block.javascript
+"%>"	meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml

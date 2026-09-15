@@ -1,0 +1,21 @@
+"<%="	meta.embedded.expression.javascript punctuation.section.embedded.begin.expression.jqhtml
+" "	meta.embedded.expression.javascript source.js
+"a"	meta.embedded.expression.javascript source.js variable.other.readwrite.js
+" "	meta.embedded.expression.javascript source.js
+">"	meta.embedded.expression.javascript source.js keyword.operator.relational.js
+" "	meta.embedded.expression.javascript source.js
+"b"	meta.embedded.expression.javascript source.js variable.other.readwrite.js
+" "	meta.embedded.expression.javascript source.js
+"?"	meta.embedded.expression.javascript source.js keyword.operator.ternary.js
+" "	meta.embedded.expression.javascript source.js
+"\""	meta.embedded.expression.javascript source.js string.quoted.double.js punctuation.definition.string.begin.js
+"x"	meta.embedded.expression.javascript source.js string.quoted.double.js
+"\""	meta.embedded.expression.javascript source.js string.quoted.double.js punctuation.definition.string.end.js
+" "	meta.embedded.expression.javascript source.js
+":"	meta.embedded.expression.javascript source.js keyword.operator.ternary.js
+" "	meta.embedded.expression.javascript source.js
+"\""	meta.embedded.expression.javascript source.js string.quoted.double.js punctuation.definition.string.begin.js
+"y"	meta.embedded.expression.javascript source.js string.quoted.double.js
+"\""	meta.embedded.expression.javascript source.js string.quoted.double.js punctuation.definition.string.end.js
+" "	meta.embedded.expression.javascript source.js
+"%>"	meta.embedded.expression.javascript punctuation.section.embedded.end.expression.jqhtml

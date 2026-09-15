@@ -1,0 +1,5 @@
+"<%"	meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+" "	meta.embedded.block.javascript
+"/* c */"	meta.embedded.block.javascript comment.block.js
+" x "	meta.embedded.block.javascript
+"%>"	meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml

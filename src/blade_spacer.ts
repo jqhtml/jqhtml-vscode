@@ -1,3 +1,36 @@
+/*
+ * Blade auto-spacing.
+ *
+ * This file is a TypeScript port of "Laravel Blade Spacer", a VS Code extension
+ * by Austen Cameron (https://github.com/austenc/vscode-laravel-blade-spacer),
+ * used under the MIT License. The tag detection regexes, the snippet strings and
+ * the left-to-right change-offset bookkeeping are derived from that work.
+ *
+ * MIT License
+ *
+ * Copyright (c) Austen Cameron
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * See THIRD_PARTY_NOTICES.md in the extension root.
+ */
+
 import * as vscode from 'vscode';
 
 /**
@@ -75,11 +108,18 @@ export const blade_spacer = async (
     editor?: vscode.TextEditor,
     config_enabled: boolean = true
 ) => {
-    if (
-        !config_enabled ||
-        !editor ||
-        editor.document.fileName.indexOf('.blade.php') === -1
-    ) {
+    if (!config_enabled || !editor) {
+        return;
+    }
+
+    // The positions below are read from e.document but the snippet is inserted
+    // into editor - so the two must be the same document, or we would edit the
+    // file the user is looking at using coordinates from a file they are not.
+    if (e.document !== editor.document) {
+        return;
+    }
+
+    if (!editor.document.fileName.endsWith('.blade.php')) {
         return;
     }
 

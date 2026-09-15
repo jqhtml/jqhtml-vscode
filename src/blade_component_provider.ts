@@ -16,8 +16,12 @@ export class BladeComponentSemanticTokensProvider implements vscode.DocumentSema
     async provideDocumentSemanticTokens(document: vscode.TextDocument): Promise<vscode.SemanticTokens> {
         const tokens_builder = new vscode.SemanticTokensBuilder();
 
-        // Only process Blade files
-        if (document.languageId !== 'blade') {
+        // Only process Blade files. The provider is registered both for the
+        // 'blade' language id and for the pattern **/*.blade.php, because with no
+        // Blade extension installed VS Code reports a .blade.php file as 'php' -
+        // so the file name is the reliable test and the language id is the
+        // fallback for Blade extensions that use a different file extension.
+        if (!document.fileName.endsWith('.blade.php') && document.languageId !== 'blade') {
             return tokens_builder.build();
         }
 
@@ -45,7 +49,10 @@ export class BladeComponentSemanticTokensProvider implements vscode.DocumentSema
 
             while ((attr_match = tag_attr_regex.exec(tag_attributes)) !== null) {
                 // Calculate the position of 'tag' within the document
-                const attr_start = component_match.index + component_match[0].indexOf(tag_attributes) + attr_match.index;
+                // The attribute text starts right after '<' + the tag name. Searching
+                // for it with indexOf would find the wrong offset whenever the
+                // attribute text also occurs inside the tag name.
+                const attr_start = component_match.index + 1 + tag_name.length + attr_match.index;
                 const attr_position = document.positionAt(attr_start);
 
                 // Push token for 'tag' attribute name

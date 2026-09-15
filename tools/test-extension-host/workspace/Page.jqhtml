@@ -1,0 +1,6 @@
+<Define:Page>
+    <Card>
+        <Slot:header>Title</Slot:header>
+        <p>body</p>
+    </Card>
+</Define:Page>

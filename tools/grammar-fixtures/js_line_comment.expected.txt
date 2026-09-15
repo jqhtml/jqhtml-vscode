@@ -1,0 +1,11 @@
+"<%"	meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+" "	meta.embedded.block.javascript
+"// comment "	meta.embedded.block.javascript comment.line.double-slash.js
+"%>"	meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml
+"<"	meta.tag.html punctuation.definition.tag.begin.html
+"div"	meta.tag.html entity.name.tag.html
+">"	meta.tag.html punctuation.definition.tag.end.html
+"after"	text.html.jqhtml
+"</"	meta.tag.close.html punctuation.definition.tag.begin.html
+"div"	meta.tag.close.html entity.name.tag.html
+">"	meta.tag.close.html punctuation.definition.tag.end.html

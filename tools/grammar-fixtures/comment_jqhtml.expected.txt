@@ -1,0 +1,3 @@
+"<%--"	comment.block.jqhtml punctuation.definition.comment.jqhtml
+" c "	comment.block.jqhtml
+"--%>"	comment.block.jqhtml punctuation.definition.comment.jqhtml

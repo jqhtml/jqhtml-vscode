@@ -1,0 +1,16 @@
+"<"	meta.tag.component.dynamic.jqhtml punctuation.definition.tag.begin.jqhtml
+"{"	meta.tag.component.dynamic.jqhtml entity.name.class.component.jqhtml
+"expr"	meta.tag.component.dynamic.jqhtml meta.embedded.expression.dynamic-tag.jqhtml
+"}"	meta.tag.component.dynamic.jqhtml meta.embedded.expression.dynamic-tag.jqhtml entity.name.class.component.jqhtml
+" "	meta.tag.component.dynamic.jqhtml
+"a"	meta.tag.component.dynamic.jqhtml meta.attribute.html entity.other.attribute-name.html
+"="	meta.tag.component.dynamic.jqhtml meta.attribute.html punctuation.separator.key-value.html
+"\""	meta.tag.component.dynamic.jqhtml meta.attribute.html string.quoted.double.html punctuation.definition.string.begin.html
+"1"	meta.tag.component.dynamic.jqhtml meta.attribute.html string.quoted.double.html
+"\""	meta.tag.component.dynamic.jqhtml meta.attribute.html string.quoted.double.html punctuation.definition.string.end.html
+">"	meta.tag.component.dynamic.jqhtml punctuation.definition.tag.end.jqhtml
+"</"	meta.tag.component.dynamic.close.jqhtml punctuation.definition.tag.begin.jqhtml
+"{"	meta.tag.component.dynamic.close.jqhtml entity.name.class.component.jqhtml
+"expr"	meta.tag.component.dynamic.close.jqhtml
+"}"	meta.tag.component.dynamic.close.jqhtml entity.name.class.component.jqhtml
+">"	meta.tag.component.dynamic.close.jqhtml punctuation.definition.tag.end.jqhtml

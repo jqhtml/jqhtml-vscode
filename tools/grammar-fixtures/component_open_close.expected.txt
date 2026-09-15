@@ -1,0 +1,7 @@
+"<"	meta.tag.component.jqhtml punctuation.definition.tag.begin.jqhtml
+"Bar"	meta.tag.component.jqhtml entity.name.class.component.jqhtml
+">"	meta.tag.component.jqhtml punctuation.definition.tag.end.jqhtml
+"text"	text.html.jqhtml
+"</"	meta.tag.component.close.jqhtml punctuation.definition.tag.begin.jqhtml
+"Bar"	meta.tag.component.close.jqhtml entity.name.class.component.jqhtml
+">"	meta.tag.component.close.jqhtml punctuation.definition.tag.end.jqhtml

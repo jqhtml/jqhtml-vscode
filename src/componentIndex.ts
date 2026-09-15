@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
 import { build_exclude_pattern, is_excluded, on_exclude_settings_changed } from './excludes';
 import { COMPONENT_NAME_SOURCE, is_component_name } from './component_name';
+import { log } from './log';
 
 /**
  * Component definition interface
@@ -22,6 +21,10 @@ export interface ComponentDefinition {
  */
 export class JqhtmlComponentIndex {
     private componentMap: Map<string, ComponentDefinition> = new Map();
+    /** Extra definitions of an already-indexed name, in discovery order. */
+    private duplicateMap: Map<string, ComponentDefinition[]> = new Map();
+    /** Names already reported as duplicated, so the warning is logged once. */
+    private warnedDuplicates: Set<string> = new Set();
     private fileWatcher: vscode.FileSystemWatcher | undefined;
     private configWatcher: vscode.Disposable | undefined;
     private indexPromise: Promise<void> | undefined;
@@ -66,18 +69,25 @@ export class JqhtmlComponentIndex {
             return this.indexPromise;
         }
 
+        // try/finally: a rejected reindex must not leave the rejected promise
+        // cached, or every later call re-throws the original error forever.
         this.indexPromise = this._reindexWorkspace();
-        await this.indexPromise;
-        this.indexPromise = undefined;
+        try {
+            await this.indexPromise;
+        } finally {
+            this.indexPromise = undefined;
+        }
     }
 
     private async _reindexWorkspace(): Promise<void> {
-        console.log('JQHTML: Starting workspace component indexing...');
+        log.debug('JQHTML: starting workspace component indexing');
         this.componentMap.clear();
+        this.duplicateMap.clear();
+        this.warnedDuplicates.clear();
 
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
-            console.log('JQHTML: No workspace folders found');
+            log.debug('JQHTML: no workspace folders to index');
             return;
         }
 
@@ -92,10 +102,9 @@ export class JqhtmlComponentIndex {
         }
 
         // Index each file
-        const promises = allFiles.map(uri => this.indexFile(uri));
-        await Promise.all(promises);
+        await Promise.all(allFiles.map(uri => this.indexFile(uri)));
 
-        console.log(`JQHTML: Indexed ${this.componentMap.size} components from ${allFiles.length} files`);
+        log.info(`JQHTML: indexed ${this.componentMap.size} components from ${allFiles.length} files`);
     }
 
     /**
@@ -108,33 +117,10 @@ export class JqhtmlComponentIndex {
 
             // Read file content
             const document = await vscode.workspace.openTextDocument(uri);
-            const text = document.getText();
-            const lines = text.split('\n');
+            const lines = document.getText().split('\n');
 
-            // Look for component definitions
-            // Pattern: <Define:ComponentName (followed by non-alphanumeric or end of tag)
-            //
-            // DIAGNOSTIC HISTORY:
-            // - Issue: Component "Contacts_Datagrid" not found in index
-            // - This regex SHOULD match: <Define:Contacts_Datagrid...
-            // - Component name pattern: _?[A-Z][A-Za-z0-9_]* (optional single underscore, uppercase, then alphanum+underscore)
-            // - Contacts_Datagrid matches this pattern
-            //
-            // POSSIBLE REASONS FOR MISSED COMPONENTS:
-            // 1. File not in workspace folders (check workspaceFolders in console)
-            // 2. File in node_modules (explicitly excluded line 75)
-            // 3. Syntax variations:
-            //    - Extra whitespace: <Define: Contacts_Datagrid> (space after colon) ❌
-            //    - Wrong case: <define:Contacts_Datagrid> (lowercase 'define') ❌
-            //    - Missing colon: <DefineContacts_Datagrid> ❌
-            // 4. Indexing hasn't completed yet (async operation)
-            // 5. File watcher didn't fire (check file modification timestamp)
-            //
-            // DEBUGGING STEPS:
-            // 1. Check console output "JQHTML: Indexed X components from Y files"
-            // 2. Check console log when file is saved (should trigger onDidChange)
-            // 3. Manually reload VS Code window to force reindex
-            // 4. Check if file path contains "node_modules"
+            // Component definitions: <Define:ComponentName followed by a
+            // non-name character or the end of the line.
             const definePattern = new RegExp(`<Define:(${COMPONENT_NAME_SOURCE})(?:[^\\w]|>|$)`, 'g');
 
             for (let lineNum = 0; lineNum < lines.length; lineNum++) {
@@ -145,23 +131,44 @@ export class JqhtmlComponentIndex {
                 definePattern.lastIndex = 0;
 
                 while ((match = definePattern.exec(line)) !== null) {
-                    const componentName = match[1];
-                    const charPos = match.index + '<Define:'.length;
-
-                    // Store component definition
-                    this.componentMap.set(componentName, {
-                        name: componentName,
-                        uri: uri,
-                        position: new vscode.Position(lineNum, charPos),
+                    this.addDefinition({
+                        name: match[1],
+                        uri,
+                        position: new vscode.Position(lineNum, match.index + '<Define:'.length),
                         line: line.trim()
                     });
-
-                    // Debug: Log each component as it's indexed
-                    console.log(`JQHTML Index: Indexed "${componentName}" from ${path.basename(uri.fsPath)}:${lineNum + 1}`);
                 }
             }
         } catch (error) {
-            console.error(`JQHTML: Error indexing file ${uri.fsPath}:`, error);
+            log.error(`JQHTML: error indexing file ${uri.fsPath}:`, error);
+        }
+    }
+
+    /**
+     * Record one definition. The FIRST file to define a name wins; later files
+     * are kept aside (getDuplicates) and reported once so the shadowing is
+     * visible without flooding the channel on every reindex.
+     */
+    private addDefinition(definition: ComponentDefinition): void {
+        const existing = this.componentMap.get(definition.name);
+
+        if (!existing) {
+            this.componentMap.set(definition.name, definition);
+            return;
+        }
+
+        if (existing.uri.toString() === definition.uri.toString()) {
+            // Same file defining the name twice - the first occurrence stands.
+            return;
+        }
+
+        const extras = this.duplicateMap.get(definition.name) || [];
+        extras.push(definition);
+        this.duplicateMap.set(definition.name, extras);
+
+        if (!this.warnedDuplicates.has(definition.name)) {
+            this.warnedDuplicates.add(definition.name);
+            log.info(`JQHTML: duplicate component "${definition.name}": using ${existing.uri.fsPath}, ignoring ${definition.uri.fsPath}`);
         }
     }
 
@@ -169,26 +176,41 @@ export class JqhtmlComponentIndex {
      * Remove all components from a file from the index
      */
     private removeFileFromIndex(uri: vscode.Uri): void {
-        // Remove all components defined in this file
-        const toRemove: string[] = [];
+        const key = uri.toString();
 
+        // Names this file was the retained definition for.
+        const orphaned: string[] = [];
         this.componentMap.forEach((def, name) => {
-            if (def.uri.toString() === uri.toString()) {
-                toRemove.push(name);
+            if (def.uri.toString() === key) {
+                orphaned.push(name);
+            }
+        });
+        orphaned.forEach(name => this.componentMap.delete(name));
+
+        // Drop this file's shadowed definitions too.
+        this.duplicateMap.forEach((extras, name) => {
+            const kept = extras.filter(def => def.uri.toString() !== key);
+            if (kept.length > 0) {
+                this.duplicateMap.set(name, kept);
+            } else {
+                this.duplicateMap.delete(name);
             }
         });
 
-        // Verbose logging commented out to reduce console noise
-        // if (toRemove.length > 0) {
-        //     console.log(`JQHTML Index: Removing ${toRemove.length} component(s) from deleted file: ${uri.fsPath}`);
-        //     console.log(`JQHTML Index: Components removed: ${toRemove.join(', ')}`);
-        // }
-
-        toRemove.forEach(name => {
-            this.componentMap.delete(name);
-        });
-
-        // console.log(`JQHTML Index: Current index size after removal: ${this.componentMap.size} components`);
+        // A shadowed definition becomes the real one when the winner goes away.
+        for (const name of orphaned) {
+            const extras = this.duplicateMap.get(name);
+            if (!extras || extras.length === 0) {
+                continue;
+            }
+            this.componentMap.set(name, extras[0]);
+            const rest = extras.slice(1);
+            if (rest.length > 0) {
+                this.duplicateMap.set(name, rest);
+            } else {
+                this.duplicateMap.delete(name);
+            }
+        }
     }
 
     /**
@@ -203,6 +225,19 @@ export class JqhtmlComponentIndex {
      */
     public getAllComponentNames(): string[] {
         return Array.from(this.componentMap.keys());
+    }
+
+    /**
+     * Names defined in more than one file, mapped to every definition found -
+     * the retained one first, then the shadowed ones in discovery order.
+     */
+    public getDuplicates(): Map<string, ComponentDefinition[]> {
+        const out = new Map<string, ComponentDefinition[]>();
+        this.duplicateMap.forEach((extras, name) => {
+            const retained = this.componentMap.get(name);
+            out.set(name, retained ? [retained, ...extras] : [...extras]);
+        });
+        return out;
     }
 
     /**
@@ -223,7 +258,11 @@ export class JqhtmlComponentIndex {
         }
         if (this.fileWatcher) {
             this.fileWatcher.dispose();
+            this.fileWatcher = undefined;
         }
+        this.indexPromise = undefined;
         this.componentMap.clear();
+        this.duplicateMap.clear();
+        this.warnedDuplicates.clear();
     }
 }

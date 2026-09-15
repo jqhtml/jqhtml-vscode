@@ -1,0 +1,11 @@
+"<"	meta.tag.slot.jqhtml punctuation.definition.tag.begin.jqhtml
+"Slot"	meta.tag.slot.jqhtml keyword.control.slot.jqhtml
+":"	meta.tag.slot.jqhtml keyword.control.slot.jqhtml
+"name"	meta.tag.slot.jqhtml keyword.control.slot.jqhtml
+">"	meta.tag.slot.jqhtml punctuation.definition.tag.end.jqhtml
+"body"	text.html.jqhtml
+"</"	meta.tag.slot.close.jqhtml punctuation.definition.tag.begin.jqhtml
+"Slot"	meta.tag.slot.close.jqhtml keyword.control.slot.jqhtml
+":"	meta.tag.slot.close.jqhtml keyword.control.slot.jqhtml
+"name"	meta.tag.slot.close.jqhtml keyword.control.slot.jqhtml
+">"	meta.tag.slot.close.jqhtml punctuation.definition.tag.end.jqhtml

@@ -8,6 +8,15 @@
     ],
     "description": "Create a new JQHTML component"
   },
+  "Component Definition with Content": {
+    "prefix": "definecontent",
+    "body": [
+      "<Define:${1:ComponentName} tag=\"${2:div}\" class=\"${3:css-class}\">",
+      "\t<%= content() %>",
+      "</Define:${1:ComponentName}>"
+    ],
+    "description": "Component definition that renders the content passed between its tags"
+  },
   "Component with Structure": {
     "prefix": "definecomp",
     "body": [
@@ -54,19 +63,24 @@
     "description": "Escaped output with newlines converted to <br /> tags"
   },
   "Scoped ID": {
-    "prefix": "$id",
-    "body": "$id=\"${1:elementId}\"",
-    "description": "Component-scoped ID attribute"
+    "prefix": "$sid",
+    "body": "$sid=\"${1:element_name}\"",
+    "description": "Component-scoped ID attribute - resolves with this.$sid('element_name')"
   },
-  "Data Binding": {
-    "prefix": ":prop",
-    "body": ":${1:property}=\"${2:value}\"",
-    "description": "Property binding"
+  "Component Argument": {
+    "prefix": "$arg",
+    "body": "$${1:name}=${2:value}",
+    "description": "Component argument - unquoted is a JS expression, quoted is a string literal"
+  },
+  "Redrawable Element": {
+    "prefix": "$redrawable",
+    "body": "$redrawable $sid=\"${1:element_name}\"",
+    "description": "Make an element independently re-renderable with this.render('element_name')"
   },
   "Event Handler": {
     "prefix": "@event",
-    "body": "@${1:click}=\"${2:handler}\"",
-    "description": "Event handler binding"
+    "body": "@${1:click}=this.${2:handler}",
+    "description": "Event handler binding - the value is an unquoted method reference"
   },
   "Named Slot": {
     "prefix": "slot",
@@ -76,6 +90,15 @@
       "</Slot:${1:slotname}>"
     ],
     "description": "Named slot definition"
+  },
+  "Named Slot with Parameters": {
+    "prefix": "slotparams",
+    "body": [
+      "<Slot:${1:row} $params=\"${2:record, index}\">",
+      "\t$0",
+      "</Slot:${1:row}>"
+    ],
+    "description": "Named slot declaring its own parameter names ($params is the only attribute a Slot accepts)"
   },
   "Self-Closing Slot": {
     "prefix": "slotself",
@@ -93,16 +116,16 @@
   },
   "Component Usage": {
     "prefix": "comp",
-    "body": "<${1:ComponentName} ${2:prop}=\"${3:value}\" />",
+    "body": "<${1:ComponentName} $${2:prop}=\"${3:value}\" />",
     "description": "Use a component"
   },
   "Component with Slots": {
     "prefix": "compslot",
     "body": [
       "<${1:ComponentName}>",
-      "\t<#${2:header}>",
+      "\t<Slot:${2:header}>",
       "\t\t$3",
-      "\t</#${2:header}>",
+      "\t</Slot:${2:header}>",
       "\t$0",
       "</${1:ComponentName}>"
     ],

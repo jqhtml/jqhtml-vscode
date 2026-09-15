@@ -8,9 +8,19 @@ import * as vscode from 'vscode';
  * - Auto-indent behavior when pressing Enter between tags
  * - Word pattern for Blade files
  *
+ * Opt-out: setLanguageConfiguration('blade', ...) replaces the indentation rules
+ * and word pattern of ANY installed Blade extension, globally and for every Blade
+ * file in the window - not just files containing jqhtml components. The setting
+ * 'jqhtml.bladeIndentationRules' (default true, preserving the behaviour existing
+ * users have) lets a user who prefers their Blade extension's own rules turn it off.
+ *
  * Call this once during extension activation.
  */
 export const init_blade_language_config = () => {
+    if (!vscode.workspace.getConfiguration('jqhtml').get('bladeIndentationRules', true)) {
+        return;
+    }
+
     // HTML empty elements that don't require closing tags
     const EMPTY_ELEMENTS: string[] = [
         'area',

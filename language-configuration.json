@@ -3,15 +3,11 @@
     "blockComment": ["<%--", "--%>"]
   },
   "brackets": [
-    ["<", ">"],
-    ["<%", "%>"],
-    ["<Slot:", "</Slot:"]
+    ["<%", "%>"]
   ],
   "autoClosingPairs": [
-    { "open": "<", "close": ">" },
+    { "open": "<", "close": ">", "notIn": ["string", "comment"] },
     { "open": "<%", "close": "%>" },
-    { "open": "<Slot:", "close": "</Slot:" },
-    { "open": "<Define:", "close": "</Define:" },
     { "open": "\"", "close": "\"", "notIn": ["string"] },
     { "open": "'", "close": "'", "notIn": ["string"] },
     { "open": "`", "close": "`", "notIn": ["string"] },
@@ -26,13 +22,13 @@
   ],
   "folding": {
     "markers": {
-      "start": "^\\s*<Define:\\w+>",
-      "end": "^\\s*</Define:\\w+>"
+      "start": "^\\s*<Define:_?[A-Z][A-Za-z0-9_]*\\b",
+      "end": "^\\s*</Define:"
     }
   },
   "wordPattern": "(-?\\d*\\.\\d\\w*)|([^\\`\\~\\!\\@\\#\\%\\^\\&\\*\\(\\)\\-\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\.\\<\\>\\/\\?\\s]+)",
   "indentationRules": {
-    "increaseIndentPattern": "^\\s*(<(?!\\/)(?!.*\\/[>\\s]).*>|<%(\\s)*(if|for|while|foreach)\\s*\\(.*\\)\\s*\\{|\\{(?!.*\\}.*)|\\[(?!.*\\].*))\\s*$",
+    "increaseIndentPattern": "^\\s*(<(?!\\/)(?!.*\\/[>\\s]).*>|<%(\\s)*(if|for|while)\\s*\\(.*\\)\\s*\\{|\\{(?!.*\\}.*)|\\[(?!.*\\].*))\\s*$",
     "decreaseIndentPattern": "^\\s*(</.*>|<%\\s*\\}\\s*%>|\\}|\\])"
   }
 }

@@ -13,7 +13,13 @@
 # Packaging note: package.json carries the scoped npm name @jqhtml/vscode-extension
 # for the internal registry, and vsce rejects scoped names. Rather than mutate the
 # real manifest, this script packages from a staging copy whose name is flattened to
-# jqhtml-vscode-extension - which is the name every published .vsix has carried.
+# jqhtml-vscode-extension - which is the name every published .vsix has carried. The
+# staging copy also drops "files" (which governs the npm tarball only): vsce refuses
+# to run when both "files" and a .vscodeignore are present, and .vscodeignore is what
+# governs the .vsix.
+#
+# After packaging, the .vsix is unzipped and the build FAILS if it contains a
+# sourcemap or any development tree - see the post-package check at the bottom.
 ################################################################################
 
 set -euo pipefail
@@ -114,8 +120,10 @@ node -e '
   const fs = require("fs");
   const p = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
   p.name = process.argv[2];
-  // "dependencies": null trips vsce; the extension has no runtime dependencies
-  if (p.dependencies === null) delete p.dependencies;
+  // vsce refuses to run when package.json has "files" AND a .vscodeignore exists.
+  // "files" governs the npm tarball and stays in the real manifest; .vscodeignore
+  // governs the .vsix, so the staging copy drops "files" and lets .vscodeignore win.
+  delete p.files;
   fs.writeFileSync(process.argv[1], JSON.stringify(p, null, 2) + "\n");
 ' "$STAGE/package.json" "$PKG_NAME"
 
@@ -124,6 +132,24 @@ echo "--- Packaging $VSIX"
 
 rm -f "$EXT_DIR"/*.vsix
 mv "$STAGE/$VSIX" "$EXT_DIR/$VSIX"
+
+# ---------------------------------------------------------------------------
+# Post-package check. .vscodeignore is the thing that keeps debug residue and
+# development trees out of the .vsix, and a silent typo there is invisible until
+# someone unzips a shipped build - so assert the result rather than trust it.
+# ---------------------------------------------------------------------------
+echo "--- Inspecting $VSIX"
+VSIX_LIST="$(unzip -Z1 "$EXT_DIR/$VSIX")"
+VSIX_COUNT="$(printf '%s\n' "$VSIX_LIST" | grep -c .)"
+
+BAD="$(printf '%s\n' "$VSIX_LIST" | grep -E '(\.map$|(^|/)src/|(^|/)tools/|(^|/)test-files/|(^|/)\.vscode-test/|(^|/)build\.sh$)' || true)"
+if [ -n "$BAD" ]; then
+  echo "ERROR: $VSIX contains files that must not ship:" >&2
+  printf '  %s\n' $BAD >&2
+  echo "       Fix .vscodeignore (and package.json \"files\") rather than the check." >&2
+  exit 1
+fi
+echo "  + $VSIX_COUNT files, no sourcemaps, no src/ tools/ test-files/ .vscode-test/ build.sh"
 
 echo
 echo "=== Build complete ==="

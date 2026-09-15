@@ -1,0 +1,1 @@
+<Bar $arg=value $arg2="v" :bind="x" @click="h" class="x" $redrawable></Bar>

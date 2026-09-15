@@ -1,0 +1,3 @@
+"<!--"	comment.block.html punctuation.definition.comment.html
+" c "	comment.block.html
+"-->"	comment.block.html punctuation.definition.comment.html

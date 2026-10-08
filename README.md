@@ -75,6 +75,8 @@ And for component classes, in JavaScript and TypeScript files:
 | `jqon_render` | `on_render()` hook |
 | `jqon_ready` | `on_ready()` hook |
 | `jqon_stop` | `on_stop()` hook |
+| `jqon_attach` | `on_attach()` hook |
+| `jqon_detach` | `on_detach()` hook |
 | `jqon_viewport_resize` | `on_viewport_resize()` hook |
 | `jqgate_load` | `gate_load()` call |
 | `jqon` | Event listener |

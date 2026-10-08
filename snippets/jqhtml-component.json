@@ -70,6 +70,24 @@
     ],
     "description": "Tear down timers, listeners and other resources when the component stops"
   },
+  "on_attach() Hook": {
+    "prefix": "jqon_attach",
+    "body": [
+      "on_attach() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Synchronous: the root element entered the document (first checked after on_ready); subscribe to external resources here"
+  },
+  "on_detach() Hook": {
+    "prefix": "jqon_detach",
+    "body": [
+      "on_detach() {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Synchronous: the root element left the document, or the component is stopping while attached; unsubscribe here"
+  },
   "on_viewport_resize() Hook": {
     "prefix": "jqon_viewport_resize",
     "body": [

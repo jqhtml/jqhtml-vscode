@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.3.72 (2026-10-08)
+
+### Features
+
+* **Snippets:** `jqon_attach` and `jqon_detach` scaffold the new `on_attach()` / `on_detach()` lifecycle hooks (`snippets/jqhtml-component.json`), matching jqhtml core 2.3.72 where a component's root entering or leaving the document is reported independently of how it was removed.
+
 ## 2.3.68 (2026-09-15)
 
 ### Bug Fixes

@@ -2,11 +2,14 @@ import * as vscode from 'vscode';
 import { JqhtmlFormattingEditProvider } from './formatter';
 import { JqhtmlComponentIndex } from './componentIndex';
 import { JqhtmlDefinitionProvider, JqhtmlHoverProvider } from './definitionProvider';
+import { JqhtmlCompletionProvider } from './completionProvider';
+import { JqhtmlDiagnostics } from './diagnostics';
 import { BladeComponentSemanticTokensProvider } from './blade_component_provider';
 import { blade_spacer } from './blade_spacer';
 import { init_blade_language_config } from './blade_language_config';
 import { COMPONENT_NAME_SOURCE, is_component_name } from './component_name';
 import { log } from './log';
+import { in_code_or_comment } from './template_context';
 
 /**
  * JQHTML Language Extension
@@ -17,13 +20,9 @@ import { log } from './log';
  * - Auto-closing tags for components and Define tags
  * - Go to definition for components (Ctrl/Cmd+Click or F12)
  * - Hover information showing component definitions
+ * - Completion for component names and their $ args
+ * - Compile errors as diagnostics (the bundled @jqhtml/parser)
  * - Automatic indexing of all JQHTML components in workspace
- *
- * Future enhancements could include:
- * - Validation of component usage
- * - Auto-completion for component props
- * - Find all references to components
- * - Rename component refactoring
  */
 
 /**
@@ -91,6 +90,20 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
         hoverProvider
     );
     context.subscriptions.push(hoverProviderDisposable);
+
+    // Completion: component names after < and </ and in extends="", $ args in a
+    // component's opening tag
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(
+            'jqhtml',
+            new JqhtmlCompletionProvider(componentIndex),
+            '<', '/', '$'
+        )
+    );
+
+    // Compile errors as diagnostics: on open, debounced on edit, cleared on close
+    const diagnostics = new JqhtmlDiagnostics();
+    context.subscriptions.push({ dispose: () => diagnostics.dispose() });
 
     // Register auto-closing tag functionality
     const autoCloseDisposable = vscode.workspace.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
@@ -175,7 +188,7 @@ export function activate(context: vscode.ExtensionContext): JqhtmlExtensionAPI {
         log.info('JQHTML: Blade support disabled via settings');
     }
 
-    log.info('JQHTML: All features registered (formatter, auto-close, goto definition, hover)');
+    log.info('JQHTML: All features registered (formatter, auto-close, goto definition, hover, completion, diagnostics)');
 
     // Return public API for other extensions
     return {
@@ -200,42 +213,6 @@ const SLOT_NAME_SOURCE = '[A-Za-z0-9_]+';
 const SLOT_TAG = new RegExp(`<Slot:(${SLOT_NAME_SOURCE})(?:\\s[^>]*)?>$`);
 const DEFINE_TAG = new RegExp(`<Define:(${COMPONENT_NAME_SOURCE})(?:\\s[^>]*)?>$`);
 const PLAIN_TAG = new RegExp(`<(${COMPONENT_NAME_SOURCE}|${HTML_NAME_SOURCE})(?:\\s[^>]*)?>$`);
-
-/** How far back the code/comment scan looks - a linear scan, but bounded. */
-const CONTEXT_SCAN_LINES = 200;
-
-/**
- * Is `position` inside a <% ... %> block, a <%-- --%> or an <!-- --> comment?
- *
- * A single linear pass over the preceding text; the state at the end is the
- * state at the cursor. The scan starts at most CONTEXT_SCAN_LINES back, which
- * can mis-read a block opened further up - acceptable for a typing heuristic.
- */
-function in_code_or_comment(document: vscode.TextDocument, position: vscode.Position): boolean {
-    const first_line = Math.max(0, position.line - CONTEXT_SCAN_LINES);
-    const text = document.getText(new vscode.Range(new vscode.Position(first_line, 0), position));
-
-    type State = 'text' | 'code' | 'template_comment' | 'html_comment';
-    let state: State = 'text';
-    let i = 0;
-
-    while (i < text.length) {
-        if (state === 'text') {
-            if (text.startsWith('<%--', i)) { state = 'template_comment'; i += 4; }
-            else if (text.startsWith('<%', i)) { state = 'code'; i += 2; }
-            else if (text.startsWith('<!--', i)) { state = 'html_comment'; i += 4; }
-            else { i++; }
-        } else if (state === 'code') {
-            if (text.startsWith('%>', i)) { state = 'text'; i += 2; } else { i++; }
-        } else if (state === 'template_comment') {
-            if (text.startsWith('--%>', i)) { state = 'text'; i += 4; } else { i++; }
-        } else {
-            if (text.startsWith('-->', i)) { state = 'text'; i += 3; } else { i++; }
-        }
-    }
-
-    return state !== 'text';
-}
 
 /**
  * The closing tag to insert after a `>` just typed at `position`, or undefined

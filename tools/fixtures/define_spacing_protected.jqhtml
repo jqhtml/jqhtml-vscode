@@ -5,7 +5,7 @@
 </Define:Inner>
 --%>
 <div>
-<Define:Foo />
+<%= '<Define:Foo />' %>
 </div>
 <!-- <Define:X> -->
 <% /* <Define:Y> */ %>

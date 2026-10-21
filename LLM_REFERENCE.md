@@ -98,13 +98,10 @@ The extension works seamlessly with:
 3. Leverage syntax highlighting for error prevention
 4. Build with webpack-loader for production
 
-## Language Server Protocol (Future)
-Future versions may include:
-- Semantic token support
-- Go-to-definition for components
-- Auto-completion for component names
-- Template validation and diagnostics
-- Hover information for JQHTML syntax
+## Editor Features
+- Go to Definition and hover for components, `$` attribute references and slots
+- Completion for component names, and for a component's `$` args (its `<Define:>` defaults, then `this.args.*` reads in its template and class)
+- Template compile errors in the Problems panel, from the bundled JQHTML parser (`jqhtml.validate` turns this off)
 
 ## Known Patterns
 

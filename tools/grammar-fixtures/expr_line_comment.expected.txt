@@ -1,0 +1,56 @@
+"<%="	meta.embedded.expression.javascript punctuation.section.embedded.begin.expression.jqhtml
+" "	meta.embedded.expression.javascript source.js
+"a"	meta.embedded.expression.javascript source.js variable.other.readwrite.js
+" "	meta.embedded.expression.javascript source.js
+"//"	meta.embedded.expression.javascript source.js comment.line.double-slash.js punctuation.definition.comment.js
+" label %> still a comment"	meta.embedded.expression.javascript source.js comment.line.double-slash.js
+"%>"	meta.embedded.expression.javascript punctuation.section.embedded.end.expression.jqhtml
+"<"	meta.tag.html punctuation.definition.tag.begin.html
+"b"	meta.tag.html entity.name.tag.html
+" "	meta.tag.html
+"<%"	meta.tag.html meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+" "	meta.tag.html meta.embedded.block.javascript
+"if"	meta.tag.html meta.embedded.block.javascript keyword.control.js
+" "	meta.tag.html meta.embedded.block.javascript
+"("	meta.tag.html meta.embedded.block.javascript keyword.operator.bracket.js
+"on"	meta.tag.html meta.embedded.block.javascript
+")"	meta.tag.html meta.embedded.block.javascript keyword.operator.bracket.js
+" "	meta.tag.html meta.embedded.block.javascript
+"{"	meta.tag.html meta.embedded.block.javascript keyword.operator.bracket.js
+" "	meta.tag.html meta.embedded.block.javascript
+"%>"	meta.tag.html meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml
+"class"	meta.tag.html meta.attribute.html entity.other.attribute-name.html
+"="	meta.tag.html meta.attribute.html punctuation.separator.key-value.html
+"\""	meta.tag.html meta.attribute.html string.quoted.double.html punctuation.definition.string.begin.html
+"on"	meta.tag.html meta.attribute.html string.quoted.double.html
+"\""	meta.tag.html meta.attribute.html string.quoted.double.html punctuation.definition.string.end.html
+"<%"	meta.tag.html meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+" "	meta.tag.html meta.embedded.block.javascript
+"}"	meta.tag.html meta.embedded.block.javascript keyword.operator.bracket.js
+" "	meta.tag.html meta.embedded.block.javascript
+"// end %>"	meta.tag.html meta.embedded.block.javascript comment.line.double-slash.js
+"%>"	meta.tag.html meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml
+">"	meta.tag.html punctuation.definition.tag.end.html
+"y"	text.html.jqhtml
+"</"	meta.tag.close.html punctuation.definition.tag.begin.html
+"b"	meta.tag.close.html entity.name.tag.html
+">"	meta.tag.close.html punctuation.definition.tag.end.html
+"<%"	meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+" "	meta.embedded.block.javascript
+"const"	meta.embedded.block.javascript keyword.control.js
+" u "	meta.embedded.block.javascript
+"="	meta.embedded.block.javascript keyword.operator.js
+" "	meta.embedded.block.javascript
+"\""	meta.embedded.block.javascript string.quoted.double.js
+"http://a %>"	meta.embedded.block.javascript string.quoted.double.js
+"\""	meta.embedded.block.javascript string.quoted.double.js
+";"	meta.embedded.block.javascript punctuation.separator.js
+" "	meta.embedded.block.javascript
+"%>"	meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml
+"<"	meta.tag.html punctuation.definition.tag.begin.html
+"i"	meta.tag.html entity.name.tag.html
+">"	meta.tag.html punctuation.definition.tag.end.html
+"after"	text.html.jqhtml
+"</"	meta.tag.close.html punctuation.definition.tag.begin.html
+"i"	meta.tag.close.html entity.name.tag.html
+">"	meta.tag.close.html punctuation.definition.tag.end.html

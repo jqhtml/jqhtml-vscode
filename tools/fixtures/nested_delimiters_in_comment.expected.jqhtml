@@ -6,6 +6,15 @@
     %>
     <div>
         <span><%= x %></span>
+        <% let y = 2; // a // comment runs to the end of the line %> <section>
+        %>
+        <% let z = 3; // <% blahadf %>
+        %>
+        <%= y + z // sum %> <section>
+        %>
+        <p>
+            <%= x %>
+        </p>
     </div>
 
 </Define:Nested>

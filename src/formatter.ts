@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { find_template_close } from './vendor/jqhtml-js-scanner';
 
 /**
  * JQHTML document formatter.
@@ -25,8 +26,9 @@ import * as vscode from 'vscode';
  *
  * The scanners are deliberately weaker than the real @jqhtml/parser lexer -
  * they exist to place indentation, not to validate - but wherever the two
- * could disagree (nested <% %> inside a JS comment, <% %> inside a <pre> body,
- * '<' inside an attribute value) this file follows the parser.
+ * could disagree (%> inside a JS comment or string, <% %> inside a <pre> body,
+ * '<' inside an attribute value) this file follows the parser. The end of a
+ * <% %> block is found with the parser's own JavaScript scanner.
  */
 
 export interface JqhtmlFormatOptions {
@@ -157,30 +159,15 @@ function tag_name_at(text: string, pos: number, name: string): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Find the end of a <% ... %> block starting at `start` (which points at '<%').
- * Nested '<% %>' pairs inside the block - typically in a JS comment that talks
- * about the syntax - are skipped over, matching what the parser accepts.
+ * Find the end of a <% ... %> block starting at `start` (which points at '<%'):
+ * the offset just past its closing %>, or -1. The body is scanned with the
+ * compiler's own JavaScript scanner (bundled from @jqhtml/parser), so a %> inside
+ * a string, regex or comment does not end the block - a // comment runs to the
+ * end of its line, so `<% a(); // note %>` is still open after that line.
  */
 function find_code_end(text: string, start: number): number {
-    let depth = 0;
-    let pos = start;
-    while (pos < text.length) {
-        if (text.startsWith('<%', pos)) {
-            depth++;
-            pos += 2;
-            continue;
-        }
-        if (text.startsWith('%>', pos)) {
-            depth--;
-            pos += 2;
-            if (depth === 0) {
-                return pos;
-            }
-            continue;
-        }
-        pos++;
-    }
-    return -1;
+    const close = find_template_close(text, start + 2);
+    return close === -1 ? -1 : close + 2;
 }
 
 /**

@@ -13,9 +13,11 @@ Language support for `.jqhtml` template files — the component templating langu
 **Features:**
 - Syntax highlighting for jqhtml template syntax (`<Define:Component>`, `<%= %>`, `$` attributes, `@` event bindings, slots)
 - Code folding for `<Define:>` blocks
-- IntelliSense for component attributes
+- Completion for component names and their `$` args (`src/completionProvider.ts`)
+- Go to Definition and hover for components (`src/definitionProvider.ts`)
 - Bracket matching for template tags
-- Error highlighting for malformed syntax
+- Compile errors as diagnostics, from `@jqhtml/parser` bundled at build time into
+  `out/vendor/jqhtml-parser.js` (`src/diagnostics.ts`; setting `jqhtml.validate`)
 - Document and selection formatting (`src/formatter.ts`)
 - Optional highlighting of JQHTML components inside Laravel Blade (`.blade.php`) files
 
@@ -79,8 +81,8 @@ tests do not carry a copy of it.
   expected message. `--update` rewrites the expected files; review the diff,
   they are the spec. Add a fixture for every formatter bug fixed.
 - `tools/test-providers.js` - `component_name`, `componentIndex`,
-  `definitionProvider`, the hover provider, `blade_component_provider` and
-  `blade_spacer`. The stub records what the providers asked VS Code for, so a
+  `definitionProvider`, the hover provider, the completion provider, diagnostics
+  (through the bundled parser), `blade_component_provider` and `blade_spacer`. The stub records what the providers asked VS Code for, so a
   test can assert on what was *not* called (for example, that a `this.method`
   handler never queries Intelephense).
 
@@ -112,7 +114,9 @@ agreement with a bug.
 `run()`, no mocha) asserts that the extension activates and that VS Code's own
 command layer reaches the providers: `executeDefinitionProvider`,
 `executeHoverProvider`, `executeFormatDocumentProvider` (cross-checked against
-`tools/format-cli.js`), and the auto-closing-tag handler against real edits.
+`tools/format-cli.js`), `executeCompletionItemProvider`, diagnostics as VS Code
+holds them (`languages.getDiagnostics`) through open, edit and close, and the
+auto-closing-tag handler against real edits.
 
 Only this tier can see activation, command registration and the interaction
 between `language-configuration.json`'s auto-closing pairs and the extension's
@@ -128,7 +132,7 @@ own handler.
 ## Packaging & Installing Locally
 
 ```bash
-npx vsce package          # produces jqhtml-vscode-<version>.vsix
+./build.sh                # produces jqhtml-vscode-<version>.vsix
 code --install-extension jqhtml-vscode-*.vsix
 ```
 
@@ -143,4 +147,4 @@ code --install-extension jqhtml-vscode-*.vsix
 
 - Package name is `@jqhtml/vscode-extension` — do not change it
 - Files/variables: `snake_case`; components in examples: `Pascal_Snake_Case`
-- Versioning follows the JQHTML monorepo: `2.MONTHS_SINCE_AUG_2025.BUILD_COUNT`
+- Versioning follows the JQHTML monorepo: `2.MINOR.PATCH`, PATCH incremented by one per release

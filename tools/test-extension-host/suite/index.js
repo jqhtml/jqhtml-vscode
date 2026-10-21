@@ -225,6 +225,69 @@ async function run_tests() {
             `"</Define:" appears ${occurrences} times: ${JSON.stringify(text)}`);
     });
 
+    await test('executeCompletionItemProvider after < offers indexed component names', async () => {
+        const doc = await vscode.workspace.openTextDocument({ language: 'jqhtml', content: '<Define:X>\n    <Ca' });
+        await vscode.window.showTextDocument(doc, { preview: false });
+        const list = await vscode.commands.executeCommand(
+            'vscode.executeCompletionItemProvider', doc.uri, new vscode.Position(1, 7));
+        // VS Code's word-based suggestions also offer "Card" (as Text); ours is the
+        // Class item that names the defining file.
+        const ours = list.items.filter(i => i.kind === vscode.CompletionItemKind.Class);
+        const card = ours.find(i => (typeof i.label === 'string' ? i.label : i.label.label) === 'Card');
+        assert.ok(card, `no Class item for Card in ${ours.map(i => i.label).join(', ')}`);
+        assert.strictEqual(card.detail, 'Card.jqhtml');
+        assert.ok(ours.some(i => i.label === 'Badge'), 'no Class item for Badge');
+    });
+
+    await test('executeCompletionItemProvider after $ offers the <Define:> defaults', async () => {
+        const doc = await vscode.workspace.openTextDocument({ language: 'jqhtml', content: '<Define:X>\n    <Badge $' });
+        await vscode.window.showTextDocument(doc, { preview: false });
+        const list = await vscode.commands.executeCommand(
+            'vscode.executeCompletionItemProvider', doc.uri, new vscode.Position(1, 12), '$');
+        const ours = list.items.filter(i => i.kind === vscode.CompletionItemKind.Property);
+        const label = ours.find(i => i.label === '$label');
+        assert.ok(label, `no Property item for $label in ${ours.map(i => i.label).join(', ')}`);
+        assert.strictEqual(label.detail, 'default: "New"');
+        assert.strictEqual(label.insertText, '$label=');
+        assert.ok(ours.some(i => i.label === '$tone'), 'no Property item for $tone');
+    });
+
+    /** Poll the diagnostics VS Code holds for `uri` until `predicate` accepts them. */
+    async function wait_for_diagnostics(uri, predicate, attempts = 40) {
+        let current = [];
+        for (let i = 0; i < attempts; i++) {
+            current = vscode.languages.getDiagnostics(uri);
+            if (predicate(current)) { return current; }
+            await sleep(100);
+        }
+        return current;
+    }
+
+    await test('a stray closing tag is reported as a problem, then cleared when fixed and on close', async () => {
+        const doc = await vscode.workspace.openTextDocument({
+            language: 'jqhtml', content: '<Define:X>\n  <div>a</span></div>\n</Define:X>\n' });
+        const editor = await vscode.window.showTextDocument(doc, { preview: false });
+
+        const found = await wait_for_diagnostics(doc.uri, d => d.length > 0);
+        assert.strictEqual(found.length, 1, 'no diagnostic for a mismatched closing tag');
+        assert.ok(found[0].message.startsWith('Closing </span> does not match open <div>'), found[0].message);
+        assert.strictEqual(found[0].severity, vscode.DiagnosticSeverity.Error);
+        assert.strictEqual(found[0].range.start.line, 1);
+        assert.strictEqual(found[0].range.start.character, 8);
+
+        await editor.edit(b => b.replace(new vscode.Range(1, 8, 1, 15), ''));
+        const fixed = await wait_for_diagnostics(doc.uri, d => d.length === 0);
+        assert.strictEqual(fixed.length, 0, 'the diagnostic stayed after the fix');
+
+        await editor.edit(b => b.insert(new vscode.Position(1, 2), '</p>'));
+        const broken = await wait_for_diagnostics(doc.uri, d => d.length > 0);
+        assert.strictEqual(broken.length, 1, 'no diagnostic after breaking it again');
+
+        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+        const closed = await wait_for_diagnostics(doc.uri, d => d.length === 0);
+        assert.strictEqual(closed.length, 0, 'diagnostics were not cleared on close');
+    });
+
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
     const failed = results.filter(r => !r.ok);

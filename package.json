@@ -2,7 +2,7 @@
   "name": "@jqhtml/vscode-extension",
   "displayName": "JQHTML",
   "description": "Syntax highlighting and language support for JQHTML template files",
-  "version": "2.3.74",
+  "version": "2.3.76",
   "publisher": "jqhtml",
   "license": "MIT",
   "publishConfig": {
@@ -158,6 +158,11 @@
           "type": "boolean",
           "default": true,
           "description": "Apply JQHTML's indentation rules and word pattern to Blade files. This overrides the Blade extension's indentation rules for every Blade file in the window; set false if you use another Blade extension's rules."
+        },
+        "jqhtml.validate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report template compile errors (the bundled @jqhtml/parser) as problems in open .jqhtml files"
         },
         "jqhtml.debug": {
           "type": "boolean",

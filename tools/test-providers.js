@@ -523,6 +523,10 @@ async function auto_close_tests() {
         ['<%-- <Foo', undefined, undefined],
         ['<!-- <Foo', undefined, undefined],
         ['<% x %> <Foo', undefined, '</Foo>'],
+        // A // comment runs to the end of its line: its %> does not close the block
+        ['<% x; // c %> <Foo', undefined, undefined],
+        ['<%= x // c %> <Foo', undefined, undefined],
+        ['<% x = "http://a %>"; %> <Foo', undefined, '</Foo>'],
         ['<%-- c --%> <Foo', undefined, '</Foo>'],
         ['<!-- c --> <Foo', undefined, '</Foo>'],
     ];
@@ -703,6 +707,326 @@ async function blade_spacer_tests() {
     }));
 }
 
+
+// ---------------------------------------------------------------------------
+// completion
+// ---------------------------------------------------------------------------
+
+const COMPLETION_WORKSPACE = {
+    'src/user_card.jqhtml': [
+        '<Define:User_Card',
+        '    $title="Untitled"',
+        '    $per_page=25',
+        '    $compact',
+        '    class="card">',
+        '    <h3><%= this.args.title %></h3>',
+        "    <% if (this.args['show_avatar']) { %><img src=\"<%= this.args.avatar_url %>\"><% } %>",
+        '</Define:User_Card>',
+        '',
+    ].join('\n'),
+    'src/user_card.js': [
+        'class User_Card extends Jqhtml_Component {',
+        '    on_create() {',
+        '        this.args.title = this.args.title || "x";',
+        '        this.state.cb = this.args.on_select;',
+        '    }',
+        '}',
+        'class Other {',
+        '    on_create() { this.args.not_mine = 1; }',
+        '}',
+        '',
+    ].join('\n'),
+    'src/_badge.jqhtml': '<Define:_Badge>\n</Define:_Badge>\n',
+    'src/page.jqhtml': '<Define:Page>\n</Define:Page>\n',
+};
+
+async function completion_tests() {
+    console.log('\ncompletion:');
+
+    /** Provider over COMPLETION_WORKSPACE plus `page_text` as src/edit.jqhtml. */
+    async function complete(page_text, extra) {
+        // `|` marks the cursor.
+        const offset = page_text.indexOf('|');
+        const text = page_text.replace('|', '');
+        const files = Object.assign({}, COMPLETION_WORKSPACE, { 'src/edit.jqhtml': text }, (extra && extra.files) || {});
+        const stub = create_stub(Object.assign({}, extra || {}, { files }));
+        const [{ JqhtmlComponentIndex }, { JqhtmlCompletionProvider }] =
+            load_with_stub(stub, 'componentIndex.js', 'completionProvider.js');
+        const index = new JqhtmlComponentIndex();
+        await index.reindexWorkspace();
+        const doc = stub.documents.get('/ws/src/edit.jqhtml');
+        const position = doc.positionAt(offset);
+        const items = await new JqhtmlCompletionProvider(index).provideCompletionItems(doc, position, TOKEN);
+        return { items, position, stub };
+    }
+    const labels = (items) => (items || []).map(i => i.label);
+
+    await test('completion: < offers every indexed component name', quiet(async () => {
+        const { items } = await complete('<Define:Edit>\n    <|\n</Define:Edit>\n');
+        assert.deepStrictEqual(labels(items).filter(l => l !== 'Edit'), ['Page', 'User_Card', '_Badge']);
+        const card = items.find(i => i.label === 'User_Card');
+        assert.strictEqual(card.kind, 6, 'kind is Class');
+        assert.strictEqual(card.detail, 'src/user_card.jqhtml');
+    }));
+
+    await test('completion: a partial name is replaced, not appended to', quiet(async () => {
+        const { items, position } = await complete('<Define:Edit>\n    <Us|\n</Define:Edit>\n');
+        const card = items.find(i => i.label === 'User_Card');
+        assert.ok(card, 'User_Card offered');
+        assert.strictEqual(card.range.start.character, position.character - 2);
+        assert.strictEqual(card.range.end.character, position.character);
+    }));
+
+    await test('completion: </ offers component names for a closing tag', quiet(async () => {
+        const { items } = await complete('<Define:Edit>\n    <User_Card></|\n</Define:Edit>\n');
+        assert.ok(labels(items).includes('User_Card'));
+    }));
+
+    await test('completion: extends="..." offers component names', quiet(async () => {
+        const { items, position } = await complete('<Define:Edit extends="Pa|">\n</Define:Edit>\n');
+        assert.ok(labels(items).includes('Page'));
+        assert.strictEqual(items[0].range.start.character, position.character - 2);
+    }));
+
+    await test('completion: < inside <% %> offers nothing', quiet(async () => {
+        const { items } = await complete('<Define:Edit>\n    <% if (a <| b) { %><% } %>\n</Define:Edit>\n');
+        assert.strictEqual(items, undefined);
+    }));
+
+    await test('completion: <Define: does not offer existing component names', quiet(async () => {
+        const { items } = await complete('<Define:|\n');
+        assert.strictEqual(items, undefined);
+    }));
+
+    await test('completion: $ in a component tag offers Define defaults, template and class args', quiet(async () => {
+        const { items } = await complete('<Define:Edit>\n    <User_Card $|\n</Define:Edit>\n');
+        const by = {};
+        (items || []).forEach(i => { by[i.label] = i; });
+        assert.deepStrictEqual(Object.keys(by).sort(), [
+            '$avatar_url', '$compact', '$on_select', '$per_page', '$show_avatar', '$title',
+        ]);
+        assert.strictEqual(by.$title.detail, 'default: "Untitled"');
+        assert.strictEqual(by.$per_page.detail, 'default: 25');
+        assert.strictEqual(by.$compact.detail, 'default (flag)');
+        assert.strictEqual(by.$show_avatar.detail, 'read in the template');
+        assert.strictEqual(by.$on_select.detail, 'read in class User_Card');
+        assert.strictEqual(by.$title.insertText, '$title=');
+        assert.ok(by.$title.sortText < by.$show_avatar.sortText, 'defaults sort before template reads');
+        assert.ok(by.$show_avatar.sortText < by.$on_select.sortText, 'template reads sort before class reads');
+        assert.ok(!by.$not_mine, 'another class is not read');
+    }));
+
+    await test('completion: the $ and partial arg name are replaced', quiet(async () => {
+        const { items, position } = await complete('<Define:Edit>\n    <User_Card $ti|\n</Define:Edit>\n');
+        const title = items.find(i => i.label === '$title');
+        assert.strictEqual(title.range.start.character, position.character - 3);
+    }));
+
+    await test('completion: args already written on the tag are not offered again', quiet(async () => {
+        const { items } = await complete('<Define:Edit>\n    <User_Card\n        $title="a" $compact\n        $|\n</Define:Edit>\n');
+        const l = labels(items);
+        assert.ok(!l.includes('$title') && !l.includes('$compact'), l.join(','));
+        assert.ok(l.includes('$per_page'));
+    }));
+
+    await test('completion: no args inside a quoted value or an unquoted value', quiet(async () => {
+        const quoted = await complete('<Define:Edit>\n    <User_Card $title="a $|"\n</Define:Edit>\n');
+        assert.strictEqual(quoted.items, undefined);
+        const unquoted = await complete('<Define:Edit>\n    <User_Card $title=a|\n</Define:Edit>\n');
+        assert.strictEqual(unquoted.items, undefined);
+    }));
+
+    await test('completion: no args in an html tag', quiet(async () => {
+        const { items } = await complete('<Define:Edit>\n    <div $|\n</Define:Edit>\n');
+        assert.strictEqual(items, undefined);
+    }));
+
+    await test('completion: args after a <% %> attribute value still complete', quiet(async () => {
+        const { items } = await complete('<Define:Edit>\n    <User_Card title="<%= x > 1 %>" $|\n</Define:Edit>\n');
+        assert.ok(labels(items).includes('$per_page'));
+    }));
+
+    await test('completion: a %> in a // comment does not end the <% %> block', quiet(async () => {
+        const open = await complete('<Define:Edit>\n    <User_Card <% if (a) { %>x="1"<% } // end %> $|\n</Define:Edit>\n');
+        assert.strictEqual(open.items, undefined);
+        const closed = await complete('<Define:Edit>\n    <User_Card <% if (a) { %>x="1"<% } // end\n    %> $|\n</Define:Edit>\n');
+        assert.ok(labels(closed.items).includes('$per_page'));
+    }));
+
+    await test('completion: a language-server class location is used without a file scan', quiet(async () => {
+        const symbol = {
+            name: 'User_Card', kind: 4,
+            location: { uri: create_stub().uri('src/user_card.js') },
+        };
+        const { items, stub } = await complete('<Define:Edit>\n    <User_Card $|\n</Define:Edit>\n', { symbols: [symbol] });
+        assert.ok(labels(items).includes('$on_select'));
+        assert.ok(!stub.calls.findFiles.some(c => c.pattern === '**/*.js'), 'no **/*.js scan');
+    }));
+}
+
+// ---------------------------------------------------------------------------
+// diagnostics
+// ---------------------------------------------------------------------------
+
+async function diagnostics_tests() {
+    console.log('\ndiagnostics:');
+    const fs = require('fs');
+    const path = require('path');
+
+    const stub = create_stub({ files: {} });
+    const { compile_diagnostics } = load_with_stub(stub, 'diagnostics.js');
+    const diag = (text) => compile_diagnostics(text, 'edit.jqhtml');
+    const span = (d) => [d.range.start.line, d.range.start.character, d.range.end.line, d.range.end.character];
+
+    await test('diagnostics: the parser is bundled at out/vendor and required from there', () => {
+        const vendor = path.join(__dirname, '..', 'out', 'vendor', 'jqhtml-parser.js');
+        assert.ok(fs.existsSync(vendor), 'out/vendor/jqhtml-parser.js exists');
+        const compiled = fs.readFileSync(path.join(__dirname, '..', 'out', 'diagnostics.js'), 'utf8');
+        assert.ok(compiled.includes('require("./vendor/jqhtml-parser")'), 'diagnostics.js requires ./vendor/jqhtml-parser');
+        assert.ok(!/require\(["']@jqhtml\/parser["']\)/.test(fs.readFileSync(vendor, 'utf8')), 'bundle is self-contained');
+        assert.ok(!/require\(["']source-map["']\)/.test(fs.readFileSync(vendor, 'utf8')), 'source-map is inlined');
+    });
+
+    await test('diagnostics: a template that compiles has none', () => {
+        assert.deepStrictEqual(diag('<Define:A $x="1">\n  <b><%= this.args.x %></b>\n</Define:A>\n'), []);
+    });
+
+    await test('diagnostics: a mismatched closing tag is an error on that tag', () => {
+        const d = diag('<Define:A>\n  <div>a</span></div>\n</Define:A>\n');
+        assert.strictEqual(d.length, 1);
+        assert.strictEqual(d[0].severity, 0, 'Error');
+        assert.strictEqual(d[0].source, 'jqhtml');
+        assert.ok(d[0].message.startsWith('Closing </span> does not match open <div>'), d[0].message);
+        assert.ok(!/\nat edit\.jqhtml:/.test(d[0].message), 'location line and code snippet are left out');
+        assert.ok(!d[0].message.includes('^^^'), 'no caret snippet');
+        assert.deepStrictEqual(span(d[0]), [1, 8, 1, 15]);
+    });
+
+    await test('diagnostics: a lone closing tag is an error', () => {
+        const d = diag('<Define:A>\n  </p>\n</Define:A>\n');
+        assert.ok(d[0].message.startsWith('Closing </p> has no matching open tag'), d[0].message);
+        assert.deepStrictEqual(span(d[0]), [1, 2, 1, 6]);
+    });
+
+    await test('diagnostics: a stray %> is an error', () => {
+        const d = diag('<Define:A>\n  <div>x</div> %>\n</Define:A>\n');
+        assert.ok(d[0].message.startsWith('Stray %> with no matching <%'), d[0].message);
+        assert.deepStrictEqual(span(d[0]), [1, 15, 1, 17]);
+    });
+
+    await test('diagnostics: invalid JS in a slot-only template is an error at its column', () => {
+        // `a + ` ends where the %> is, so that is where the parse fails
+        const d = diag('<Define:A>\n<Slot:x><%= a + %></Slot:x>\n</Define:A>\n');
+        assert.strictEqual(d.length, 1);
+        assert.ok(d[0].message.includes('JavaScript syntax error in component "A"'), d[0].message);
+        assert.deepStrictEqual(span(d[0]), [1, 16, 1, 18]);
+    });
+
+    await test('diagnostics: an unclosed tag carries the parser suggestion', () => {
+        const d = diag('<Define:A>\n  <b>\n</Define:A>\n');
+        assert.ok(d[0].message.startsWith('Unclosed tag: b'), d[0].message);
+        assert.ok(d[0].message.includes('Missing closing tag'), 'suggestion included');
+        assert.deepStrictEqual(span(d[0]), [1, 2, 1, 5]);
+    });
+
+    await test('diagnostics: a %> hidden in a // comment is named in the message', () => {
+        const d = diag('<Define:A>\n  <% let x = 1; // note %> <b>hi</b>\n</Define:A>\n');
+        assert.strictEqual(d.length, 1);
+        assert.ok(d[0].message.includes('The %> on line 2, column 25 is inside a // comment (line 2, column 17)'), d[0].message);
+    });
+
+    await test('diagnostics: a file without <Define:> is an error at the top', () => {
+        const d = diag('<div></div>\n');
+        assert.ok(d[0].message.includes('exactly one top-level <Define:ComponentName>'), d[0].message);
+        assert.strictEqual(d[0].range.start.line, 0);
+    });
+
+    const BAD = '<Define:A>\n  </p>\n</Define:A>\n';
+    const GOOD = '<Define:A>\n  <p></p>\n</Define:A>\n';
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function live(config) {
+        const s = create_stub({ files: { 'a.jqhtml': BAD, 'b.jqhtml': GOOD, 'c.js': 'x </p>' }, config });
+        const { JqhtmlDiagnostics } = load_with_stub(s, 'diagnostics.js');
+        return { s, JqhtmlDiagnostics, uri: (rel) => s.uri(rel) };
+    }
+
+    await test('diagnostics: documents already open at activation are validated', quiet(async () => {
+        const { s, JqhtmlDiagnostics, uri } = live();
+        s.vscode.workspace.textDocuments.push(s.documents.get('/ws/a.jqhtml'), s.documents.get('/ws/c.js'));
+        const d = new JqhtmlDiagnostics(20);
+        const collection = s.calls.diagnosticCollections[0];
+        assert.strictEqual(collection.get(uri('a.jqhtml')).length, 1);
+        assert.strictEqual(collection.has(uri('c.js')), false, 'non-jqhtml documents are ignored');
+        d.dispose();
+    }));
+
+    await test('diagnostics: opening a document validates it at once', quiet(async () => {
+        const { s, JqhtmlDiagnostics, uri } = live();
+        const d = new JqhtmlDiagnostics(20);
+        s.open_document('a.jqhtml');
+        s.open_document('b.jqhtml');
+        const collection = s.calls.diagnosticCollections[0];
+        assert.strictEqual(collection.get(uri('a.jqhtml')).length, 1);
+        assert.deepStrictEqual(collection.get(uri('b.jqhtml')), []);
+        d.dispose();
+    }));
+
+    await test('diagnostics: edits are debounced - one validation after the burst', quiet(async () => {
+        const { s, JqhtmlDiagnostics, uri } = live();
+        const d = new JqhtmlDiagnostics(40);
+        s.open_document('b.jqhtml');
+        const collection = s.calls.diagnosticCollections[0];
+        let sets = 0;
+        const real_set = collection.set.bind(collection);
+        collection.set = (u, v) => { sets++; real_set(u, v); };
+
+        s.edit_document('b.jqhtml', BAD);
+        await sleep(10);
+        s.edit_document('b.jqhtml', BAD + ' ');
+        await sleep(10);
+        assert.deepStrictEqual(collection.get(uri('b.jqhtml')), [], 'not re-validated mid-burst');
+        assert.strictEqual(sets, 0);
+        await sleep(80);
+        assert.strictEqual(sets, 1, 'validated once');
+        assert.strictEqual(collection.get(uri('b.jqhtml')).length, 1);
+
+        s.edit_document('b.jqhtml', GOOD);
+        await sleep(80);
+        assert.deepStrictEqual(collection.get(uri('b.jqhtml')), [], 'fixed file clears');
+        d.dispose();
+    }));
+
+    await test('diagnostics: closing a document clears it and cancels a pending validation', quiet(async () => {
+        const { s, JqhtmlDiagnostics, uri } = live();
+        const d = new JqhtmlDiagnostics(30);
+        s.open_document('a.jqhtml');
+        const collection = s.calls.diagnosticCollections[0];
+        assert.strictEqual(collection.get(uri('a.jqhtml')).length, 1);
+        s.edit_document('a.jqhtml', BAD + ' ');
+        s.close_document('a.jqhtml');
+        assert.strictEqual(collection.has(uri('a.jqhtml')), false, 'cleared on close');
+        await sleep(60);
+        assert.strictEqual(collection.has(uri('a.jqhtml')), false, 'pending validation did not repopulate it');
+        d.dispose();
+    }));
+
+    await test('diagnostics: jqhtml.validate false reports nothing', quiet(async () => {
+        const { s, JqhtmlDiagnostics, uri } = live({ 'jqhtml.validate': false });
+        const d = new JqhtmlDiagnostics(20);
+        s.open_document('a.jqhtml');
+        assert.strictEqual(s.calls.diagnosticCollections[0].has(uri('a.jqhtml')), false);
+        d.dispose();
+    }));
+
+    await test('diagnostics: dispose disposes the collection', quiet(async () => {
+        const { s, JqhtmlDiagnostics } = live();
+        const d = new JqhtmlDiagnostics(20);
+        d.dispose();
+        assert.strictEqual(s.calls.diagnosticCollections[0].disposed, true);
+    }));
+}
+
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -717,6 +1041,8 @@ async function main() {
     await hover_tests();
     await blade_provider_tests();
     await blade_spacer_tests();
+    await completion_tests();
+    await diagnostics_tests();
 
     console.log('');
     if (failed === 0) {

@@ -1,0 +1,5 @@
+<%
+  // never put <% %> control-flow
+  let n = 1;
+%>
+<div>after</div>

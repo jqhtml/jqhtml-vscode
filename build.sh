@@ -47,9 +47,10 @@ VSIX="$PKG_NAME-$VERSION.vsix"
 echo "=== JQHTML VS Code Extension: $MODE build v$VERSION ==="
 
 # ---------------------------------------------------------------------------
-# Toolchain. tsc lives at the monorepo root; vsce is not vendored anywhere, so
-# fall back to npx. Neither is installed by this script - a build should not
-# mutate the tracked node_modules tree.
+# Toolchain. tsc lives at the monorepo root. vsce is taken from the root
+# node_modules when vendored there, else from PATH; when neither has it, the
+# packaging step installs the latest @vscode/vsce globally from public npm (never
+# into the tracked node_modules tree, never through npx).
 # ---------------------------------------------------------------------------
 if [ -x "$REPO_ROOT/node_modules/.bin/tsc" ]; then
   TSC="$REPO_ROOT/node_modules/.bin/tsc"
@@ -85,9 +86,47 @@ rm -rf out
 
 [ -f out/extension.js ] || { echo "ERROR: compile produced no out/extension.js" >&2; exit 1; }
 
+# ---------------------------------------------------------------------------
+# Bundle @jqhtml/parser into out/vendor/jqhtml-parser.js. Diagnostics compile
+# templates with it (src/diagnostics.ts imports ./vendor/jqhtml-parser). The
+# parser is ESM and depends on source-map, while the extension is CommonJS and
+# ships no node_modules, so esbuild inlines both into one CommonJS file. The
+# source is the parser's built dist/ in this monorepo - build the parser first
+# when its src/ has changed. Nothing is downloaded.
+# ---------------------------------------------------------------------------
+PARSER_ENTRY="$REPO_ROOT/packages/parser/dist/index.js"
+if [ -x "$REPO_ROOT/node_modules/.bin/esbuild" ]; then
+  ESBUILD="$REPO_ROOT/node_modules/.bin/esbuild"
+elif command -v esbuild >/dev/null 2>&1; then
+  ESBUILD=esbuild
+else
+  echo "ERROR: esbuild not found (looked for $REPO_ROOT/node_modules/.bin/esbuild, then PATH)." >&2
+  exit 1
+fi
+[ -f "$PARSER_ENTRY" ] || { echo "ERROR: $PARSER_ENTRY is missing - build packages/parser first" >&2; exit 1; }
+
+echo "--- Bundling @jqhtml/parser $(node -p "require('$REPO_ROOT/packages/parser/package.json').version") -> out/vendor/jqhtml-parser.js"
+"$ESBUILD" "$PARSER_ENTRY" --bundle --platform=node --format=cjs --target=node16 \
+  --legal-comments=inline --log-level=warning --outfile=out/vendor/jqhtml-parser.js
+node -e 'const p = require(process.argv[1]); if (typeof p.compileTemplate !== "function") { process.exit(1); }' \
+  "$EXT_DIR/out/vendor/jqhtml-parser.js" \
+  || { echo "ERROR: out/vendor/jqhtml-parser.js does not export compileTemplate" >&2; exit 1; }
+
+# The compiler's JavaScript scanner, for the formatter and the typing helpers: they
+# find the %> closing a <% %> block with the same rules as the compiler (strings,
+# regexes and comments hide %>; a // comment runs to the end of its line).
+"$ESBUILD" "$REPO_ROOT/packages/parser/dist/js_scanner.js" --bundle --platform=node --format=cjs \
+  --target=node16 --legal-comments=inline --log-level=warning --outfile=out/vendor/jqhtml-js-scanner.js
+node -e 'const s = require(process.argv[1]); if (typeof s.find_template_close !== "function") { process.exit(1); }' \
+  "$EXT_DIR/out/vendor/jqhtml-js-scanner.js" \
+  || { echo "ERROR: out/vendor/jqhtml-js-scanner.js does not export find_template_close" >&2; exit 1; }
+
 if [ "$MODE" = release ]; then
   # A release must ship no debug residue. Fail loudly rather than shipping it.
-  if compgen -G "out/*.js.map" >/dev/null || grep -rql "sourceMappingURL" out; then
+  # A sourcemap comment is a line that starts with //# sourceMappingURL=; the
+  # bundled parser writes that text into the code it generates, mid-line.
+  if compgen -G "out/**/*.js.map" >/dev/null || compgen -G "out/*.js.map" >/dev/null \
+      || grep -rqlE '^//[#@] sourceMappingURL=' out; then
     echo "ERROR: release build produced sourcemap output in out/" >&2
     exit 1
   fi
@@ -102,16 +141,50 @@ echo "$VERSION" > .version
 # ---------------------------------------------------------------------------
 # Package from a staging copy (see the scoped-name note in the header)
 # ---------------------------------------------------------------------------
+# This packaging step was written against vsce 4.0.0. Newer releases are welcome
+# (the latest is installed when vsce is missing), but if packaging or the checks
+# below fail under another version, say so: the cause may be a vsce change.
+VSCE_WRITTEN_FOR="4.0.0"
+
 if [ -x "$REPO_ROOT/node_modules/.bin/vsce" ]; then
   VSCE="$REPO_ROOT/node_modules/.bin/vsce"
 elif command -v vsce >/dev/null 2>&1; then
   VSCE=vsce
 else
-  VSCE="npx --yes @vscode/vsce"
+  echo "--- vsce not found; installing the latest @vscode/vsce globally"
+  if ! npm install -g @vscode/vsce@latest --registry https://registry.npmjs.org/; then
+    echo "ERROR: installing @vscode/vsce failed (see the npm output above)." >&2
+    echo "       Install it by hand (npm install -g @vscode/vsce), or run" >&2
+    echo "       ./build.sh --no-package to compile without packaging." >&2
+    exit 1
+  fi
+  hash -r
+  command -v vsce >/dev/null 2>&1 || {
+    echo "ERROR: @vscode/vsce installed but no vsce on PATH (npm global bin: $(npm prefix -g)/bin)." >&2
+    exit 1
+  }
+  VSCE=vsce
 fi
+VSCE_VERSION="$($VSCE --version 2>/dev/null || echo unknown)"
+echo "  vsce: $VSCE ($VSCE_VERSION)"
 
 STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
+on_exit() {
+  local status=$?
+  rm -rf "$STAGE"
+  if [ "$status" -ne 0 ]; then
+    echo "ERROR: packaging the .vsix failed (exit $status)." >&2
+    if [ "$VSCE_VERSION" != "$VSCE_WRITTEN_FOR" ]; then
+      echo "       This may be due to a new vsce version: this script was written for" >&2
+      echo "       vsce $VSCE_WRITTEN_FOR and the installed version is $VSCE_VERSION. Review the" >&2
+      echo "       latest vsce changes (https://github.com/microsoft/vscode-vsce/releases)" >&2
+      echo "       to decide whether this script needs updating, or whether another" >&2
+      echo "       failure reason is responsible." >&2
+    fi
+  fi
+  exit "$status"
+}
+trap on_exit EXIT
 
 tar --exclude=node_modules --exclude='*.vsix' --exclude=.vscode-test -cf - . \
   | (cd "$STAGE" && tar -xf -)
@@ -129,6 +202,7 @@ node -e '
 
 echo "--- Packaging $VSIX"
 (cd "$STAGE" && $VSCE package --no-dependencies --allow-missing-repository >/dev/null)
+[ -f "$STAGE/$VSIX" ] || { echo "ERROR: vsce reported success but produced no $VSIX" >&2; exit 1; }
 
 rm -f "$EXT_DIR"/*.vsix
 mv "$STAGE/$VSIX" "$EXT_DIR/$VSIX"

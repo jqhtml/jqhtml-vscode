@@ -1,0 +1,5 @@
+<%= a // label %> still a comment
+%>
+<b <% if (on) { %>class="on"<% } // end %>
+%>>y</b>
+<% const u = "http://a %>"; %><i>after</i>

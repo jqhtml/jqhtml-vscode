@@ -1,2 +1,3 @@
-<% // comment %>
+<% // comment %> still a comment
+%>
 <div>after</div>

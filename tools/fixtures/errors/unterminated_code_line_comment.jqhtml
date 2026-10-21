@@ -1,0 +1,5 @@
+<Define:Broken>
+<div>
+<% let y = 2; // note %> <b>hi</b>
+</div>
+</Define:Broken>

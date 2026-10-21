@@ -1,0 +1,18 @@
+"<%"	meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
+"  "	meta.embedded.block.javascript
+"// never put <% %> control-flow"	meta.embedded.block.javascript comment.line.double-slash.js
+"  "	meta.embedded.block.javascript
+"let"	meta.embedded.block.javascript keyword.control.js
+" n "	meta.embedded.block.javascript
+"="	meta.embedded.block.javascript keyword.operator.js
+" "	meta.embedded.block.javascript
+"1"	meta.embedded.block.javascript constant.numeric.js
+";"	meta.embedded.block.javascript punctuation.separator.js
+"%>"	meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml
+"<"	meta.tag.html punctuation.definition.tag.begin.html
+"div"	meta.tag.html entity.name.tag.html
+">"	meta.tag.html punctuation.definition.tag.end.html
+"after"	text.html.jqhtml
+"</"	meta.tag.close.html punctuation.definition.tag.begin.html
+"div"	meta.tag.close.html entity.name.tag.html
+">"	meta.tag.close.html punctuation.definition.tag.end.html

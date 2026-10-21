@@ -161,8 +161,8 @@
           "end": "\\*/"
         },
         {
-          "comment": "Line comment - stops before %> so it cannot swallow the end of the embedded block",
-          "match": "//(?:(?!%>).)*",
+          "comment": "Line comment - runs to the end of the line, %> included, as in the compiler: a %> inside it does not close the block",
+          "match": "//.*",
           "name": "comment.line.double-slash.js"
         },
         {

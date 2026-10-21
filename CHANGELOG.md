@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.3.75 (2026-10-21)
+
+### Features
+
+* **Snippets:** `jqon_load_error` scaffolds the new `on_load_error(error)` lifecycle hook (`snippets/jqhtml-component.json`), matching jqhtml core 2.3.75 where an override sets fallback `this.data` after a failed `on_load()` and the component continues.
+* **Completion:** component names after `<`, `</` and inside `extends=""`, from the workspace component index (`src/completionProvider.ts`). Inside a component's opening tag, its `$` args: the `$name=` defaults on its `<Define:>` tag (with the written value as detail), then the `this.args.name` / `this.args['name']` reads in its template, then those in its JavaScript class (found through the language servers' workspace symbols, else a scan of the workspace `.js` files). Args already on the tag, positions inside quoted or unquoted values, `<% %>` blocks and comments, and HTML tags are excluded. Trigger characters: `<`, `/`, `$`.
+* **Diagnostics:** template compile errors appear in the Problems panel at the parser's line and column (`src/diagnostics.ts`). Each open `.jqhtml` document is compiled with `@jqhtml/parser`'s `compileTemplate()`, so the editor reports what the build rejects, including the stricter 2.3.75 rules: stray and mismatched closing tags, a stray `%>`, and invalid JavaScript in any template, slot-only templates included. The message is the parser's headline plus its suggestion, without the location line and code snippet. Documents are validated on open, 300 ms after the last edit, and when `jqhtml.validate` changes; their diagnostics are cleared on close. New setting `jqhtml.validate` (default `true`).
+* **Packaging:** `build.sh` bundles `packages/parser/dist` and its `source-map` dependency into `out/vendor/jqhtml-parser.js` (esbuild from the monorepo's vendored `node_modules`, CommonJS, nothing downloaded), so the `.vsix` still ships no `node_modules`. The release sourcemap check now looks for a `//# sourceMappingURL=` comment line, since the bundled compiler contains that text mid-line in code it generates. `THIRD_PARTY_NOTICES.md` lists source-map (BSD-3-Clause).
+
+### Bug Fixes
+
+* **`//` comments in `<% %>`, `<%= %>` and `<%!= %>`:** a line comment runs to the end of its line, `%>` included, matching jqhtml parser 2.3.75: `<% a(); // note %>` does not close the tag on that line. The grammar's line-comment rule is `//.*` (it stopped before `%>`), which also fixes a comment line that mentions `<% %>` inside a multi-line block ending the block early. The formatter, the auto-close handler and `$` arg completion find the `%>` closing a block with the compiler's own JavaScript scanner (`build.sh` bundles `packages/parser/dist/js_scanner.js` into `out/vendor/jqhtml-js-scanner.js`), so a `%>` inside a string, regex or `//` comment no longer ends the block for them either.
+
+* **Diagnostics for the 2.3.75 attribute rules:** the bundled parser reports a `<%= %>` / `<%!= %>` in a quoted attribute value that spans lines ("must be on one line", with the `$arg=( ... )` form suggested for `$` attributes), so the grammar no longer needs to highlight such an expression across lines. Character references in quoted attribute values (`&amp;`, `&quot;`) are resolved by the bundled parser as the HTML parser resolves them.
+
+### Internal
+
+* `in_code_or_comment()` moved from `src/extension.ts` to `src/template_context.ts`, next to the new `open_tag_at()` used by `$` arg completion.
+* Rename and Find All References are not implemented: the component index records definitions only, so neither falls out of it. References would need a new scan of `.jqhtml`, Blade and JavaScript files, and a rename would also have to rename the JavaScript class, `register_component()` names and `$(...).component('Name')` strings to avoid leaving a broken component.
+
 ## 2.3.72 (2026-10-08)
 
 ### Features

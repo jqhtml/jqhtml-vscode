@@ -71,6 +71,7 @@ And for component classes, in JavaScript and TypeScript files:
 | `jqcomponent` | Component class with the common lifecycle hooks |
 | `jqon_create` | `on_create()` hook |
 | `jqon_load` | `on_load()` hook |
+| `jqon_load_error` | `on_load_error(error)` hook |
 | `jqon_loaded` | `on_loaded()` hook |
 | `jqon_render` | `on_render()` hook |
 | `jqon_ready` | `on_ready()` hook |
@@ -118,6 +119,8 @@ Basic HTML tag and attribute completion is provided through VS Code's built-in H
 
 - **Go to Definition** - Jump from a component tag, `$` attribute reference, `extends=""` attribute, or `Slot:` name to where it's defined, backed by a workspace-wide component index. Slot names are ordinary identifiers, so `<Slot:header>` navigates just like `<Slot:Header>`; a `$attr=this.member` reference resolves against the enclosing `<Define:>` component and is looked up in JavaScript only (no PHP lookup, and no standalone-function fallback). Other `$` references try PHP classes first, then JavaScript classes, then standalone JavaScript functions, asking the installed language servers before falling back to scanning the workspace.
 - **Hover** - Hover over a component name for JQHTML-specific information, using the same component index.
+- **Completion** - After `<`, `</` and inside `extends=""`, the component names in the index. Inside a component's opening tag (`<User_Card $`), its `$` args: the `$name=` defaults on its `<Define:>` tag first, then the `this.args.name` reads in its template and in its JavaScript class. Args already written on the tag are left out.
+- **Problems** - Every open `.jqhtml` file is compiled with the JQHTML parser bundled into the extension, and a compile error is shown at its line and column - the same error the build reports. Files are checked when opened and 300 ms after the last edit, and their problems are cleared when they close. Set `jqhtml.validate` to `false` to turn this off. The parser is the version this extension release was built with, not the one installed in your project.
 
 ### Code Folding
 
@@ -198,7 +201,8 @@ JQHTML_FAST=1 npm test # tiers 1 and 2; the extension host tier prints SKIPPED
 
 - **Tier 1** loads the compiled `out/*.js` with the `vscode` module replaced by
   an in-memory stub, and covers the formatter, the component index, Go to
-  Definition, hovers, Blade semantic tokens and Blade auto-spacing.
+  Definition, hovers, completion, compile-error diagnostics (through the bundled
+  `out/vendor/jqhtml-parser.js`), Blade semantic tokens and Blade auto-spacing.
 - **Tier 2** tokenises fixtures with the same TextMate engine VS Code runs and
   compares every token against a checked-in snapshot.
 - **Tier 3** launches a real VS Code, opens a fixture workspace and drives the

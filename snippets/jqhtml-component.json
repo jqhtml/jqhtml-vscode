@@ -34,6 +34,15 @@
     ],
     "description": "Fetch asynchronous data. Only this.args and this.data are available here"
   },
+  "on_load_error() Hook": {
+    "prefix": "jqon_load_error",
+    "body": [
+      "on_load_error(error) {",
+      "\tthis.data.error = ${0:error.message};",
+      "}"
+    ],
+    "description": "on_load() failed: set fallback this.data and the component continues. Without it the error is printed and the component stops. Only this.args and this.data are available here"
+  },
   "on_loaded() Hook": {
     "prefix": "jqon_loaded",
     "body": [

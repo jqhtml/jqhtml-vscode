@@ -77,6 +77,32 @@ class SnippetString {
     constructor(value) { this.value = value || ''; }
 }
 
+class CompletionItem {
+    constructor(label, kind) { this.label = label; this.kind = kind; }
+}
+
+class Diagnostic {
+    constructor(range, message, severity) {
+        this.range = range;
+        this.message = message;
+        this.severity = severity === undefined ? 0 : severity;
+    }
+}
+
+/**
+ * A diagnostic collection that keeps what was set, keyed by uri string, so a
+ * test can read back what the extension reported for a document.
+ */
+class DiagnosticCollection {
+    constructor(name) { this.name = name; this.entries = new Map(); this.disposed = false; }
+    set(uri, diagnostics) { this.entries.set(uri.toString(), diagnostics || []); }
+    get(uri) { return this.entries.get(uri.toString()); }
+    has(uri) { return this.entries.has(uri.toString()); }
+    delete(uri) { this.entries.delete(uri.toString()); }
+    clear() { this.entries.clear(); }
+    dispose() { this.disposed = true; this.entries.clear(); }
+}
+
 class RelativePattern {
     constructor(base, pattern) {
         this.base = typeof base === 'string' ? base : (base.uri ? base.uri.fsPath : String(base));
@@ -117,6 +143,7 @@ class TextDocument {
         this.languageId = languageId || language_for(uri.fsPath);
         this.version = 1;
         this.isUntitled = false;
+        this.isClosed = false;
     }
     get lineCount() { return this._lines.length; }
     getText(range) {
@@ -228,6 +255,7 @@ function create_stub(options) {
         executeCommand: [],
         workspaceSymbolQueries: [],
         insertSnippet: [],
+        diagnosticCollections: [],
         openTextDocument: [],
         warnings: [],
         output: [],
@@ -330,6 +358,12 @@ function create_stub(options) {
         },
         onDidChangeConfiguration(fn) { workspace._configListeners.push(fn); return new Disposable(); },
         onDidChangeTextDocument(fn) { workspace._changeListeners.push(fn); return new Disposable(); },
+        onDidOpenTextDocument(fn) { workspace._openListeners.push(fn); return new Disposable(); },
+        onDidCloseTextDocument(fn) { workspace._closeListeners.push(fn); return new Disposable(); },
+        /** The documents "open in the editor" - tests add to it with open_document(). */
+        textDocuments: [],
+        _openListeners: [],
+        _closeListeners: [],
         onDidSaveTextDocument() { return new Disposable(); },
         _configListeners: [],
         _changeListeners: [],
@@ -382,7 +416,11 @@ function create_stub(options) {
         registerDocumentSemanticTokensProvider() { return new Disposable(); },
         registerCompletionItemProvider() { return new Disposable(); },
         setLanguageConfiguration() { return new Disposable(); },
-        createDiagnosticCollection() { return { set() {}, clear() {}, dispose() {} }; },
+        createDiagnosticCollection(name) {
+            const collection = new DiagnosticCollection(name);
+            calls.diagnosticCollections.push(collection);
+            return collection;
+        },
     };
 
     const commands = {
@@ -427,7 +465,7 @@ function create_stub(options) {
 
     const vscode = {
         Position, Range, Uri, Location, MarkdownString, Hover, SnippetString,
-        RelativePattern, SemanticTokensBuilder, SemanticTokensLegend, Disposable,
+        RelativePattern, CompletionItem, Diagnostic, SemanticTokensBuilder, SemanticTokensLegend, Disposable,
         SymbolKind,
         TextEdit: {
             replace: (range, newText) => ({ range, newText }),
@@ -452,6 +490,32 @@ function create_stub(options) {
         make_editor,
         /** Delete a file and fire the watcher-style delete path. */
         remove_file(rel) { documents.delete(to_fs_path(rel)); return Uri.file(rel); },
+        /** Open a document in the "editor": add it to textDocuments and fire onDidOpen. */
+        open_document(rel) {
+            const doc = documents.get(to_fs_path(rel));
+            if (!doc) { throw new Error('no such document: ' + rel); }
+            doc.isClosed = false;
+            workspace.textDocuments.push(doc);
+            workspace._openListeners.forEach(fn => fn(doc));
+            return doc;
+        },
+        /** Replace a document's text as an edit would, and fire onDidChangeTextDocument. */
+        edit_document(rel, text) {
+            const doc = documents.get(to_fs_path(rel));
+            doc._text = text;
+            doc._lines = text.split('\n');
+            doc.version++;
+            workspace._changeListeners.forEach(fn => fn({ document: doc, contentChanges: [] }));
+            return doc;
+        },
+        /** Close a document: drop it from textDocuments and fire onDidClose. */
+        close_document(rel) {
+            const doc = documents.get(to_fs_path(rel));
+            doc.isClosed = true;
+            workspace.textDocuments = workspace.textDocuments.filter(d => d !== doc);
+            workspace._closeListeners.forEach(fn => fn(doc));
+            return doc;
+        },
         /** Fire an onDidChangeConfiguration event with the given affected keys. */
         fire_config_change(affected) {
             const event = { affectsConfiguration: (k) => affected.includes(k) };

@@ -1,6 +1,6 @@
 "<%"	meta.embedded.block.javascript punctuation.section.embedded.begin.jqhtml
 " "	meta.embedded.block.javascript
-"// comment "	meta.embedded.block.javascript comment.line.double-slash.js
+"// comment %> still a comment"	meta.embedded.block.javascript comment.line.double-slash.js
 "%>"	meta.embedded.block.javascript punctuation.section.embedded.end.jqhtml
 "<"	meta.tag.html punctuation.definition.tag.begin.html
 "div"	meta.tag.html entity.name.tag.html

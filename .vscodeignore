@@ -22,5 +22,4 @@ out/**/*.map
 # Repo furniture that is not part of the extension.
 .eslintrc.json
 .version-state.json
-.beads/**
 .claude/**

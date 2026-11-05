@@ -816,6 +816,30 @@ export class JqhtmlHoverProvider implements vscode.HoverProvider {
             return new vscode.Hover(markdown, range);
         }
 
+        // $autofill_id - the occurrence under the cursor
+        const autofillRegex = /\$autofill_id(?=\s*=)/g;
+        let autofillMatch;
+        while ((autofillMatch = autofillRegex.exec(line)) !== null) {
+            const start = autofillMatch.index;
+            const end = start + '$autofill_id'.length;
+            if (char < start || char > end) {
+                continue;
+            }
+
+            const markdown = new vscode.MarkdownString();
+            markdown.appendMarkdown(`**\`$autofill_id\` Attribute**\n\n`);
+            markdown.appendMarkdown(`Gives a \`$sid\` form field an explicit id (and default \`name\`) so browser and password-manager autofill can recognise it. \`this.$sid()\` still finds the element. A falsy value keeps the scoped id.\n\n`);
+            markdown.appendMarkdown(`Only on \`<input>\`, \`<textarea>\` and \`<select>\` with \`$sid\`. The id must match \`[A-Za-z][A-Za-z0-9_-]*\` and be unique on the page. Set \`autocomplete\` too.\n\n`);
+            markdown.appendMarkdown(`**Usage:**\n\`\`\`jqhtml\n<input $sid="input" $autofill_id=this.args.autofill_id autocomplete="email" />\n\`\`\`\n\n`);
+            markdown.appendMarkdown(`On a component tag it is an ordinary argument (\`this.args.autofill_id\`).`);
+
+            const range = new vscode.Range(
+                new vscode.Position(position.line, start),
+                new vscode.Position(position.line, end)
+            );
+            return new vscode.Hover(markdown, range);
+        }
+
         // Check for tag="" attribute on components (Define tags or component invocations)
         const beforeCursor = line.substring(0, char);
 

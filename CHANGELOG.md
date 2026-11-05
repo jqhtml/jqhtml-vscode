@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.4.4 (2026-11-05)
+
+### Features
+
+* **`$autofill_id`:** hover documentation (`src/definitionProvider.ts`) and an `$autofill_id` snippet (`$sid` + `$autofill_id` + `autocomplete`), matching jqhtml 2.4.4's explicit id for autofill form fields. Highlighted by the existing `$` attribute rule. Formatter fixture `tools/fixtures/autofill_id.jqhtml`.
+* **Diagnostics for the 2.4.4 rules** (from the bundled parser): a hand-written `id=""` is reported as a compile error pointing to `$sid`, and `$autofill_id` off a `$sid` `<input>`/`<textarea>`/`<select>`, with `$redrawable` or inside a conditional attribute block is reported too.
+
 ## 2.3.75 (2026-10-21)
 
 ### Features

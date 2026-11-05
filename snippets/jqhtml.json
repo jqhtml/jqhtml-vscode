@@ -67,6 +67,11 @@
     "body": "$sid=\"${1:element_name}\"",
     "description": "Component-scoped ID attribute - resolves with this.$sid('element_name')"
   },
+  "Autofill Id": {
+    "prefix": "$autofill_id",
+    "body": "\\$sid=\"${1:input}\" \\$autofill_id=${2:this.args.autofill_id} autocomplete=\"${3:email}\"",
+    "description": "Explicit id for browser/password-manager autofill on an <input>/<textarea>/<select>; this.$sid() still finds the element"
+  },
   "Component Argument": {
     "prefix": "$arg",
     "body": "$${1:name}=${2:value}",

@@ -1,0 +1,10 @@
+<Define:Login_Form>
+<form $sid="form">
+<Text_Input $sid="email" $autofill_id="login__email" $autocomplete="email" />
+<input $sid="password" type="password"
+$autofill_id=this.args.password_id
+autocomplete="current-password" />
+<textarea $sid="note" $autofill_id="login__note" autocomplete="off">keep
+   this</textarea>
+</form>
+</Define:Login_Form>

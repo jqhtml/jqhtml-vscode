@@ -30,7 +30,7 @@ Full syntax highlighting for all JQHTML constructs:
 - **Slots**: `<Slot:slotname>` for both definition and content
 - **Data Bindings**: `:property="value"`
 - **Event Handlers**: `@click="handler"`
-- **Special Attributes**: `$sid="name"`, `$property="value"`
+- **Special Attributes**: `$sid="name"`, `$autofill_id=expr`, `$property="value"`
 - **Components**: `<MyComponent />`
 - **Comments**: `<%-- comment --%>`
 
